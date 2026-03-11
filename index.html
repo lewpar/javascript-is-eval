@@ -117,8 +117,41 @@
     color: #cdd6f4;
     font-weight: 700;
   }
+  #line-numbers .locked {
+    color: #f38ba8;
+    opacity: 0.5;
+  }
 
   .editor-wrap.line-numbers #line-numbers { display: block; }
+
+  /* Locked line flash overlay */
+  #locked-flash {
+    display: none;
+    position: absolute;
+    left: 0; right: 0;
+    pointer-events: none;
+    z-index: 10;
+    background: rgba(243, 139, 168, 0.18);
+    border-left: 3px solid #f38ba8;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+  }
+  #locked-flash.show { display: block; }
+  #locked-flash.visible { opacity: 1; }
+
+  /* Locked lines dim overlay — one stripe per locked line */
+  #locked-lines-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 4;
+    overflow: hidden;
+  }
+  .locked-line-stripe {
+    position: absolute;
+    left: 0; right: 0;
+    background: rgba(0, 0, 0, 0.22);
+  }
 
   /* ── SETTINGS MODAL ── */
   .settings-row {
@@ -138,6 +171,40 @@
     border-bottom: 2px solid #e8e0d0;
     margin-bottom: 4px;
   }
+
+  .settings-section-header.collapsible {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 2px solid #e8e0d0;
+    padding-bottom: 8px;
+    user-select: none;
+  }
+  .settings-section-header.collapsible:hover { color: #555; }
+  .settings-collapse-icon { font-size: 0.75rem; transition: transform 0.2s; }
+  .settings-collapse-icon.open { transform: rotate(180deg); }
+
+  .settings-collapsible-body {
+    display: none;
+    padding-top: 4px;
+  }
+  .settings-collapsible-body.open { display: block; }
+
+  .settings-text-input {
+    width: 100%;
+    margin-top: 8px;
+    padding: 8px 10px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    background: #f7f3ec;
+    color: var(--text);
+    outline: none;
+  }
+  .settings-text-input:focus { border-color: var(--orange); }
+  .settings-text-input::placeholder { color: #aaa; }
 
   .settings-label { font-weight: 700; font-size: .93rem; }
   .settings-desc  { font-size: .78rem; color: #888; margin-top: 2px; }
@@ -284,6 +351,14 @@
     border: none;
     outline: none;
     overflow: auto;
+  }
+
+  /* When line locking is active, disable wrapping so long lines scroll horizontally */
+  .editor-wrap.no-wrap pre,
+  .editor-wrap.no-wrap textarea {
+    white-space: pre;
+    word-wrap: normal;
+    overflow-x: auto;
   }
 
   #highlight-layer {
@@ -569,6 +644,10 @@
       <span>Code was loaded from a shared link — review it before running!</span>
       <button class="notice-dismiss" id="preload-dismiss" title="Dismiss">✕</button>
     </div>
+    <div class="notice" id="locked-notice" style="background:#ff9f43;color:#2d2d2d;">
+      <span>🔒</span>
+      <span>Some lines are locked — you can only edit the <strong>highlighted</strong> lines.</span>
+    </div>
   </div>
 
   <!-- split layout -->
@@ -587,6 +666,8 @@
 
       <div class="editor-wrap" id="editor-wrap">
         <div id="line-numbers" aria-hidden="true"></div>
+        <div id="locked-flash" aria-hidden="true"></div>
+        <div id="locked-lines-overlay" aria-hidden="true"></div>
         <pre id="highlight-layer" aria-hidden="true"></pre>
         <textarea id="code-editor"
           spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"
@@ -675,6 +756,33 @@
         </label>
       </div>
 
+      <div class="settings-section-header collapsible" style="margin-top:16px;" id="teacher-section-header">
+        <span>🎓 Teacher <span style="font-family:'Nunito',sans-serif;font-size:0.65rem;font-weight:800;background:var(--orange);color:white;padding:2px 7px;border-radius:20px;vertical-align:middle;letter-spacing:0.03em;">EXPERIMENTAL</span></span>
+        <span class="settings-collapse-icon" id="teacher-collapse-icon">▼</span>
+      </div>
+      <div class="settings-collapsible-body" id="teacher-section-body">
+
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Line Locking</div>
+            <div class="settings-desc">Restrict students to editing only specified lines</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="setting-line-lock" />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="settings-row" id="editable-lines-row" style="display:none; flex-direction:column; align-items:flex-start;">
+          <div>
+            <div class="settings-label">Editable Lines</div>
+            <div class="settings-desc">Comma-separated line numbers students can edit (e.g. 3,4,5)</div>
+          </div>
+          <input type="text" class="settings-text-input" id="setting-editable-lines" placeholder="e.g. 3,4,5" />
+        </div>
+
+      </div>
+
     </div>
   </div>
 </div>
@@ -735,6 +843,12 @@ const settings = {
   smartIndent: true,
 };
 
+// Teacher state
+const teacher = {
+  lineLock:      false,
+  editableLines: [], // array of 1-based line numbers
+};
+
 const STORAGE_KEY = 'jie_settings';
 
 function saveSettings() {
@@ -777,6 +891,15 @@ const settingLineNumbers = document.getElementById('setting-line-numbers');
 const settingAutoClose   = document.getElementById('setting-auto-close');
 const settingSmartIndent = document.getElementById('setting-smart-indent');
 const settingLayout      = document.getElementById('setting-layout');
+const settingLineLock    = document.getElementById('setting-line-lock');
+const settingEditableLines = document.getElementById('setting-editable-lines');
+const editableLinesRow   = document.getElementById('editable-lines-row');
+const lockedFlash        = document.getElementById('locked-flash');
+const lockedLinesOverlay = document.getElementById('locked-lines-overlay');
+const lockedNotice       = document.getElementById('locked-notice');
+const teacherSectionHeader = document.getElementById('teacher-section-header');
+const teacherCollapseIcon  = document.getElementById('teacher-collapse-icon');
+const teacherSectionBody   = document.getElementById('teacher-section-body');
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SYNTAX HIGHLIGHTER
@@ -844,7 +967,10 @@ function highlight(code) {
 }
 
 function syncHighlight() { hlLayer.innerHTML = highlight(editor.value); }
-function syncScroll()     { hlLayer.scrollTop = editor.scrollTop; hlLayer.scrollLeft = editor.scrollLeft; }
+function syncScroll() {
+  hlLayer.scrollTop  = editor.scrollTop;
+  hlLayer.scrollLeft = editor.scrollLeft;
+}
 
 editor.addEventListener('input',  syncHighlight);
 editor.addEventListener('scroll', syncScroll);
@@ -854,7 +980,23 @@ function loadFromHash() {
   const hash = window.location.hash;
   if (!hash || hash.length <= 1) return;
   try {
-    const code = decodeURIComponent(escape(atob(decodeURIComponent(hash.slice(1)))));
+    const decoded = decodeURIComponent(escape(atob(decodeURIComponent(hash.slice(1)))));
+    let code = decoded;
+    // Try to parse as JSON envelope
+    try {
+      const envelope = JSON.parse(decoded);
+      if (envelope && typeof envelope.code === 'string') {
+        code = envelope.code;
+        // Load teacher settings if present
+        if (envelope.teacher) {
+          teacher.lineLock      = !!envelope.teacher.lineLock;
+          teacher.editableLines = Array.isArray(envelope.teacher.editableLines)
+            ? envelope.teacher.editableLines.map(Number).filter(n => n > 0)
+            : [];
+          applyTeacherSettings();
+        }
+      }
+    } catch (_) { /* plain code string — use as-is */ }
     editor.value = code;
     syncHighlight();
     updateLineNumbers();
@@ -985,14 +1127,26 @@ document.getElementById('btn-clear-output').addEventListener('click', () => { ou
 function buildShareUrl() {
   const code = editor.value;
   if (!code.trim()) return null;
-  return `${location.origin}${location.pathname}#${btoa(unescape(encodeURIComponent(code)))}`;
+  const envelope = { code };
+  if (teacher.lineLock) {
+    envelope.teacher = {
+      lineLock: true,
+      editableLines: teacher.editableLines,
+    };
+  }
+  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(envelope))));
+  return `${location.origin}${location.pathname}#${encoded}`;
 }
 
 document.getElementById('btn-get-link').addEventListener('click', () => {
   const url = buildShareUrl();
   shareInput.value = url || '';
   shareInput.placeholder = url ? '' : 'Write some code first!';
-  if (url) history.replaceState(null, '', '#' + btoa(unescape(encodeURIComponent(editor.value))));
+  if (url) history.replaceState(null, '', '#' + btoa(unescape(encodeURIComponent(JSON.stringify(
+    teacher.lineLock
+      ? { code: editor.value, teacher: { lineLock: true, editableLines: teacher.editableLines } }
+      : { code: editor.value }
+  )))));
   sharePopupOvl.classList.add('open');
   if (url) setTimeout(() => shareInput.select(), 80);
 });
@@ -1092,9 +1246,13 @@ function updateLineNumbers() {
   const activeLine = hasFocus
     ? editor.value.substring(0, editor.selectionStart).split('\n').length
     : -1;
-  lineNumbersEl.innerHTML = lines.map((_, i) =>
-    `<div class="${i + 1 === activeLine ? 'active' : ''}">${i + 1}</div>`
-  ).join('');
+  lineNumbersEl.innerHTML = lines.map((_, i) => {
+    const n = i + 1;
+    const isActive = n === activeLine;
+    const isLocked = teacher.lineLock && !isLineEditable(n);
+    if (isLocked) return `<div class="locked">${n}</div>`;
+    return `<div class="${isActive ? 'active' : ''}">${n}</div>`;
+  }).join('');
   lineNumbersEl.scrollTop = editor.scrollTop;
 }
 
@@ -1105,6 +1263,7 @@ document.addEventListener('selectionchange', () => {
 // Sync line number scroll with editor scroll
 editor.addEventListener('scroll', () => {
   if (settings.lineNumbers) lineNumbersEl.scrollTop = editor.scrollTop;
+  updateLockedOverlay();
 });
 
 // ─── AUTO-CLOSE BRACKETS ─────────────────────────────────────────────────────
@@ -1161,6 +1320,7 @@ editor.addEventListener('keydown', function(e) {
 editor.addEventListener('keydown', function(e) {
   if (!settings.smartIndent) return;
   if (e.key !== 'Enter') return;
+  if (teacher.lineLock) return;
   if (this.selectionStart !== this.selectionEnd) return;
 
   const s = this.selectionStart;
@@ -1181,7 +1341,122 @@ editor.addEventListener('keydown', function(e) {
   updateLineNumbers();
 });
 
-// ─── APPLY SETTINGS ──────────────────────────────────────────────────────────
+// ─── LINE LOCK ENFORCEMENT ───────────────────────────────────────────────────
+
+// Safe undo stack — only used when line locking is active
+const undoStack = [];
+let undoPointer = -1;
+let lastUndoValue = null;
+
+function pushUndo(value) {
+  if (value === lastUndoValue) return;
+  // Trim any future states if we've undone and then typed
+  undoStack.splice(undoPointer + 1);
+  undoStack.push(value);
+  if (undoStack.length > 100) undoStack.shift();
+  undoPointer = undoStack.length - 1;
+  lastUndoValue = value;
+}
+
+function applyUndo() {
+  if (undoPointer <= 0) return;
+  undoPointer--;
+  const prev = undoStack[undoPointer];
+  lastUndoValue = prev;
+  editor.value = prev;
+  syncHighlight();
+  updateLineNumbers();
+  updateLockedOverlay();
+}
+
+editor.addEventListener('input', () => {
+  if (teacher.lineLock) pushUndo(editor.value);
+});
+
+editor.addEventListener('keydown', function(e) {
+  if (!teacher.lineLock) return;
+
+  // Intercept Ctrl/Cmd+Z for safe undo
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+    e.preventDefault();
+    applyUndo();
+    return;
+  }
+
+  // Allow other modifier combos (Ctrl+A, Ctrl+C, Ctrl+X etc.) freely
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',
+       'Home','End','PageUp','PageDown','Escape','F1','F2','F3','F4',
+       'F5','F6','F7','F8','F9','F10','F11','F12'].includes(e.key)) return;
+
+  const lineNum = getCurrentLineNumber();
+
+  // Block Enter entirely when line locking is active — line structure is fixed
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    flashLockedLine(lineNum);
+    return;
+  }
+
+  // Backspace at start of a line — jump to end of nearest editable line above
+  if (e.key === 'Backspace') {
+    const s = editor.selectionStart;
+    if (!isLineEditable(lineNum)) { e.preventDefault(); flashLockedLine(lineNum); return; }
+    const lineStart = editor.value.lastIndexOf('\n', s - 1) + 1;
+    if (s === lineStart) {
+      e.preventDefault();
+      // Find nearest editable line above
+      for (let n = lineNum - 1; n >= 1; n--) {
+        if (isLineEditable(n)) {
+          // Move cursor to end of that line
+          const lines = editor.value.split('\n');
+          const charPos = lines.slice(0, n - 1).reduce((acc, l) => acc + l.length + 1, 0) + lines[n - 1].length;
+          editor.selectionStart = editor.selectionEnd = charPos;
+          return;
+        }
+      }
+      // No editable line above — do nothing
+      return;
+    }
+    return;
+  }
+
+  // Block Delete if it would merge lines
+  if (e.key === 'Delete') {
+    const s = editor.selectionStart;
+    if (!isLineEditable(lineNum)) { e.preventDefault(); flashLockedLine(lineNum); return; }
+    if (editor.value[s] === '\n') { e.preventDefault(); return; }
+    return;
+  }
+
+  // Block all other printable input on locked lines
+  if (e.key.length === 1 && !isLineEditable(lineNum)) {
+    e.preventDefault();
+    flashLockedLine(lineNum);
+  }
+});
+
+// Block paste on locked lines, strip newlines on editable lines
+editor.addEventListener('paste', function(e) {
+  if (!teacher.lineLock) return;
+  const lineNum = getCurrentLineNumber();
+  if (!isLineEditable(lineNum)) {
+    e.preventDefault();
+    flashLockedLine(lineNum);
+    return;
+  }
+  // Strip newlines from pasted text so it can't overflow into other lines
+  e.preventDefault();
+  const text = (e.clipboardData || window.clipboardData)
+    .getData('text')
+    .replace(/[\r\n]+/g, '');
+  const s = this.selectionStart, end = this.selectionEnd;
+  this.value = this.value.substring(0, s) + text + this.value.substring(end);
+  this.selectionStart = this.selectionEnd = s + text.length;
+  syncHighlight();
+  updateLineNumbers();
+  updateLockedOverlay();
+});
 function applySettings() {
   // Line numbers
   settingLineNumbers.checked = settings.lineNumbers;
@@ -1236,6 +1511,117 @@ settingLayout.addEventListener('change', () => {
   setLayout(settingLayout.checked ? 'horizontal' : 'vertical');
 });
 
+// ─── TEACHER SETTINGS ────────────────────────────────────────────────────────
+let flashTimer = null;
+let editableLinesSet = new Set();
+
+function parseEditableLines(str) {
+  return str.split(',')
+    .map(s => parseInt(s.trim(), 10))
+    .filter(n => !isNaN(n) && n > 0);
+}
+
+function updateLockedOverlay() {
+  lockedLinesOverlay.innerHTML = '';
+  if (!teacher.lineLock) return;
+  const lineHeight = parseFloat(getComputedStyle(editor).lineHeight);
+  const paddingTop = parseFloat(getComputedStyle(editor).paddingTop);
+  const totalLines = editor.value.split('\n').length;
+  for (let n = 1; n <= totalLines; n++) {
+    if (!isLineEditable(n)) {
+      const stripe = document.createElement('div');
+      stripe.className = 'locked-line-stripe';
+      stripe.style.top    = (paddingTop + (n - 1) * lineHeight - editor.scrollTop) + 'px';
+      stripe.style.height = lineHeight + 'px';
+      lockedLinesOverlay.appendChild(stripe);
+    }
+  }
+}
+
+function applyTeacherSettings() {
+  // Rebuild the fast-lookup Set
+  editableLinesSet = new Set(teacher.editableLines);
+  settingLineLock.checked = teacher.lineLock;
+  settingEditableLines.value = teacher.editableLines.join(', ');
+  editableLinesRow.style.display = teacher.lineLock ? 'flex' : 'none';
+  editorWrap.classList.toggle('no-wrap', teacher.lineLock);
+  // Show/hide the student notice
+  lockedNotice.classList.toggle('show', teacher.lineLock && teacher.editableLines.length > 0);
+  updateLineNumbers();
+  updateLockedOverlay();
+}
+
+function isLineEditable(lineNum) {
+  if (!teacher.lineLock) return true;
+  return editableLinesSet.has(lineNum);
+}
+
+function getCurrentLineNumber() {
+  return editor.value.substring(0, editor.selectionStart).split('\n').length;
+}
+
+function getLineTopPx(lineNum) {
+  const lineHeight = parseFloat(getComputedStyle(editor).lineHeight);
+  const paddingTop = parseFloat(getComputedStyle(editor).paddingTop);
+  return paddingTop + (lineNum - 1) * lineHeight - editor.scrollTop;
+}
+
+function flashLockedLine(lineNum) {
+  const lineHeight = parseFloat(getComputedStyle(editor).lineHeight);
+  const top = getLineTopPx(lineNum);
+  lockedFlash.style.top    = top + 'px';
+  lockedFlash.style.height = lineHeight + 'px';
+  lockedFlash.classList.add('show');
+  // Use rAF to allow display:block to take effect before triggering transition
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      lockedFlash.classList.add('visible');
+      if (flashTimer) clearTimeout(flashTimer);
+      flashTimer = setTimeout(() => {
+        lockedFlash.classList.remove('visible');
+        flashTimer = setTimeout(() => lockedFlash.classList.remove('show'), 350);
+      }, 400);
+    });
+  });
+}
+
+// Teacher section collapse toggle
+teacherSectionHeader.addEventListener('click', () => {
+  const isOpen = teacherSectionBody.classList.toggle('open');
+  teacherCollapseIcon.classList.toggle('open', isOpen);
+});
+
+settingLineLock.addEventListener('change', () => {
+  teacher.lineLock = settingLineLock.checked;
+  if (teacher.lineLock) {
+    // Seed undo stack with current state
+    undoStack.length = 0;
+    undoPointer = -1;
+    lastUndoValue = null;
+    pushUndo(editor.value);
+  }
+  applyTeacherSettings();
+  saveSettings();
+});
+
+settingEditableLines.addEventListener('input', () => {
+  teacher.editableLines = parseEditableLines(settingEditableLines.value);
+  editableLinesSet = new Set(teacher.editableLines);
+  updateLineNumbers();
+  updateLockedOverlay();
+  lockedNotice.classList.toggle('show', teacher.lineLock && teacher.editableLines.length > 0);
+});
+
+settingEditableLines.addEventListener('change', () => {
+  teacher.editableLines = parseEditableLines(settingEditableLines.value);
+  editableLinesSet = new Set(teacher.editableLines);
+  settingEditableLines.value = teacher.editableLines.join(', ');
+  updateLineNumbers();
+  updateLockedOverlay();
+  lockedNotice.classList.toggle('show', teacher.lineLock && teacher.editableLines.length > 0);
+  saveSettings();
+});
+
 // ─── STARTUP ─────────────────────────────────────────────────────────────────
 // Load persisted settings before applying
 loadSettings();
@@ -1245,6 +1631,7 @@ setLayout(layoutMode);
 
 // Apply all other settings
 applySettings();
+applyTeacherSettings();
 
 // Hook line numbers into existing input listener
 editor.addEventListener('input', updateLineNumbers);
