@@ -374,7 +374,11 @@
   .out-error  { color: #f38ba8; }
   .out-warn   { color: #f9e2af; }
   .out-return { color: #a6e3a1; }
-  .out-label  { font-size: 0.73rem; opacity: 0.5; user-select: none; margin-right: 2px; }
+  .out-label  { font-size: 0.73rem; opacity: 0.85; user-select: none; margin-right: 6px; font-weight: 700; }
+  .out-log    .out-label { color: #89b4fa; }
+  .out-error  .out-label { color: #f38ba8; }
+  .out-warn   .out-label { color: #f9e2af; }
+  .out-return .out-label { color: #a6e3a1; }
 
   /* ── DIVIDER ── */
   #divider {
@@ -828,7 +832,7 @@ editor.addEventListener('keydown', function(e) {
 
 // ─── OUTPUT HELPERS ───────────────────────────────────────────────────────────
 function appendOutput(text, type) {
-  const labels = { log:'[log]    ', error:'[error]  ', warn:'[warn]   ', return:'[return] ' };
+  const labels = { log:'[log]', error:'[error]', warn:'[warn]', return:'[return]' };
   const line = document.createElement('div');
   line.className = 'out-' + type;
   const lbl = document.createElement('span');
