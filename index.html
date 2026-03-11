@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JS Playground 🎮</title>
+<title>JavaScript Is Eval</title>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -69,7 +69,10 @@
     font-size: 0.85rem;
     padding: 4px 12px;
     border-radius: 20px;
+    text-decoration: none;
+    transition: background 0.15s;
   }
+  .header-badge:hover { background: #444; }
 
   main {
     max-width: 960px;
@@ -288,7 +291,83 @@
   .out-return { color: #a6e3a1; }
   .out-label  { font-size: 0.75rem; opacity: 0.5; user-select: none; margin-right: 2px; }
 
-  /* MODAL */
+  /* SHARE POPUP */
+  .share-popup-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(45,45,45,.55);
+    z-index: 100;
+    align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .share-popup-overlay.open { display: flex; }
+  .share-popup {
+    background: var(--panel);
+    border: 4px solid var(--border);
+    border-radius: 20px;
+    box-shadow: 8px 8px 0 var(--border);
+    max-width: 540px; width: 100%;
+    overflow: hidden;
+    animation: popIn .18s cubic-bezier(.34,1.56,.64,1);
+  }
+  .share-popup-header {
+    background: var(--purple);
+    border-bottom: 3px solid var(--border);
+    padding: 14px 20px;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.2rem;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    color: white;
+  }
+  .share-popup-body { padding: 20px; }
+  .share-popup-body p { font-size: .9rem; margin-bottom: 12px; font-weight: 700; color: #555; }
+  .share-url-row { display: flex; gap: 8px; align-items: center; }
+  #share-url {
+    flex: 1;
+    padding: 10px 12px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    background: #f7f3ec; color: var(--text);
+    outline: none;
+  }
+  .btn-icon {
+    font-family: 'Fredoka One', cursive;
+    font-size: .95rem;
+    padding: 8px 16px;
+    border: 3px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 var(--border);
+    transition: transform 0.08s, box-shadow 0.08s;
+    white-space: nowrap;
+  }
+  .btn-icon:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--border); }
+  .btn-close-x {
+    background: none; border: none; box-shadow: none;
+    font-size: 1.4rem; cursor: pointer; color: inherit;
+    line-height: 1; padding: 0 2px;
+    opacity: 0.8;
+    transition: opacity .1s;
+  }
+  .btn-close-x:hover { opacity: 1; }
+
+  /* DISMISSIBLE INTRO */
+  .intro-strip {
+    position: relative;
+  }
+  .intro-strip.hidden { display: none; }
+  .intro-dismiss {
+    background: none; border: none;
+    color: white; font-size: 1.2rem;
+    cursor: pointer; opacity: 0.75;
+    padding: 0 0 0 8px;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: opacity .1s;
+  }
+  .intro-dismiss:hover { opacity: 1; }
   .modal-overlay {
     display: none;
     position: fixed; inset: 0;
@@ -353,15 +432,16 @@
 <body>
 
 <header>
-  <div class="logo"><span class="logo-emoji">🎮</span> JS Playground</div>
-  <div class="header-badge">Safe · Simple · Fun</div>
+  <div class="logo"><span class="logo-emoji">🎮</span> JavaScript Is Eval</div>
+  <a class="header-badge" href="https://github.com/lewpar/javascript-is-eval" target="_blank" rel="noopener">⭐ GitHub</a>
 </header>
 
 <main>
 
-  <div class="intro-strip">
+  <div class="intro-strip" id="intro-strip">
     <span class="icon">💡</span>
     <span>Write JavaScript below and hit <strong>Run</strong>. Use <code style="background:rgba(255,255,255,.2);padding:1px 6px;border-radius:4px">console.log()</code> or <strong>return</strong> a value to see output!</span>
+    <button class="intro-dismiss" id="intro-dismiss" title="Dismiss for this session">✕</button>
   </div>
 
   <div class="preload-notice" id="preload-notice">
@@ -389,14 +469,9 @@
       <button class="btn btn-run"   id="btn-run">▶ Run</button>
       <button class="btn btn-reset" id="btn-reset">🗑 Clear</button>
       <div class="toolbar-right">
-        <button class="btn btn-copy" id="btn-copy">🔗 Copy Link</button>
+        <button class="btn btn-copy" id="btn-get-link">🔗 Get Link</button>
         <button class="btn btn-clr"  id="btn-clear-output">✕ Clear Output</button>
       </div>
-    </div>
-
-    <div class="share-row">
-      <span class="share-label">🔗 Share:</span>
-      <input type="text" id="share-url" readonly placeholder="Click 'Copy Link' to generate a shareable URL…" />
     </div>
   </div>
 
@@ -412,7 +487,24 @@
 
 </main>
 
-<!-- WARNING MODAL -->
+<!-- SHARE POPUP -->
+<div class="share-popup-overlay" id="share-popup-overlay">
+  <div class="share-popup" role="dialog" aria-modal="true" aria-label="Share link">
+    <div class="share-popup-header">
+      <span>🔗 Share This Code</span>
+      <button class="btn-close-x" id="share-popup-close" title="Close">✕</button>
+    </div>
+    <div class="share-popup-body">
+      <p>Send this link to share your code — it loads automatically when opened:</p>
+      <div class="share-url-row">
+        <input type="text" id="share-url" readonly placeholder="Generating…" />
+        <button class="btn-icon btn-copy" id="btn-copy-url" style="background:var(--purple);color:white;">Copy</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-header">
@@ -444,13 +536,14 @@
 let skipWarningThisSession = false;
 
 // ─── DOM REFS ─────────────────────────────────────────────────────────────────
-const editor      = document.getElementById('code-editor');
-const hlLayer     = document.getElementById('highlight-layer');
-const outputArea  = document.getElementById('output-area');
-const overlay     = document.getElementById('modal-overlay');
-const skipChk     = document.getElementById('skip-checkbox');
-const shareInput  = document.getElementById('share-url');
-const preloadNote = document.getElementById('preload-notice');
+const editor        = document.getElementById('code-editor');
+const hlLayer       = document.getElementById('highlight-layer');
+const outputArea    = document.getElementById('output-area');
+const overlay       = document.getElementById('modal-overlay');
+const skipChk       = document.getElementById('skip-checkbox');
+const preloadNote   = document.getElementById('preload-notice');
+const shareInput    = document.getElementById('share-url');
+const sharePopupOvl = document.getElementById('share-popup-overlay');
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SYNTAX HIGHLIGHTER
@@ -688,12 +781,16 @@ overlay.addEventListener('click', e => {
   if (e.target === overlay) overlay.classList.remove('open');
 });
 
+// ─── INTRO DISMISS ───────────────────────────────────────────────────────────
+document.getElementById('intro-dismiss').addEventListener('click', () => {
+  document.getElementById('intro-strip').classList.add('hidden');
+});
+
 // ─── CLEAR CODE ──────────────────────────────────────────────────────────────
 document.getElementById('btn-reset').addEventListener('click', () => {
   editor.value = '';
   syncHighlight();
   preloadNote.classList.remove('show');
-  shareInput.value = '';
   history.replaceState(null, '', location.pathname);
   editor.focus();
 });
@@ -703,7 +800,7 @@ document.getElementById('btn-clear-output').addEventListener('click', () => {
   outputArea.innerHTML = '';
 });
 
-// ─── SHARE LINK ──────────────────────────────────────────────────────────────
+// ─── SHARE LINK POPUP ────────────────────────────────────────────────────────
 function buildShareUrl() {
   const code = editor.value;
   if (!code.trim()) return null;
@@ -711,34 +808,37 @@ function buildShareUrl() {
   return `${location.origin}${location.pathname}#${b64}`;
 }
 
-document.getElementById('btn-copy').addEventListener('click', () => {
+document.getElementById('btn-get-link').addEventListener('click', () => {
   const url = buildShareUrl();
-  if (!url) { shareInput.placeholder = 'Write some code first!'; return; }
-
-  const b64 = btoa(unescape(encodeURIComponent(editor.value)));
-  shareInput.value = url;
-  history.replaceState(null, '', '#' + b64);
-
-  navigator.clipboard.writeText(url).then(() => {
-    const btn = document.getElementById('btn-copy');
-    const orig = btn.innerHTML;
-    btn.innerHTML = '✓ Copied!';
-    btn.style.background = '#6bcb77';
-    setTimeout(() => { btn.innerHTML = orig; btn.style.background = ''; }, 1800);
-  }).catch(() => shareInput.select());
-});
-
-// Keep URL live once it's been generated
-editor.addEventListener('input', () => {
-  if (!shareInput.value) return;
-  const url = buildShareUrl();
-  if (url) {
+  if (!url) {
+    shareInput.value = '';
+    shareInput.placeholder = 'Write some code first!';
+  } else {
     shareInput.value = url;
     history.replaceState(null, '', '#' + btoa(unescape(encodeURIComponent(editor.value))));
-  } else {
-    shareInput.value = '';
-    history.replaceState(null, '', location.pathname);
   }
+  sharePopupOvl.classList.add('open');
+  if (url) setTimeout(() => shareInput.select(), 80);
+});
+
+document.getElementById('share-popup-close').addEventListener('click', () => {
+  sharePopupOvl.classList.remove('open');
+});
+sharePopupOvl.addEventListener('click', e => {
+  if (e.target === sharePopupOvl) sharePopupOvl.classList.remove('open');
+});
+
+document.getElementById('btn-copy-url').addEventListener('click', () => {
+  const url = shareInput.value;
+  if (!url) return;
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('btn-copy-url');
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copied!';
+    btn.style.background = '#6bcb77';
+    btn.style.color = '#2d2d2d';
+    setTimeout(() => { btn.textContent = orig; btn.style.background = ''; btn.style.color = ''; }, 1800);
+  }).catch(() => shareInput.select());
 });
 
 // ─── KEYBOARD SHORTCUT HINT ──────────────────────────────────────────────────
