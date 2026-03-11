@@ -84,6 +84,84 @@
     transition: background 0.15s;
   }
   .header-badge:hover { background: #444; }
+  .header-btn {
+    cursor: pointer;
+    border: none;
+    font-family: 'Fredoka One', cursive;
+  }
+
+  /* ── LINE NUMBERS ── */
+  .editor-wrap.line-numbers pre,
+  .editor-wrap.line-numbers textarea {
+    padding-left: 52px;
+  }
+
+  #line-numbers {
+    display: none;
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    width: 44px;
+    z-index: 3;
+    background: #181825;
+    border-right: 2px solid #313244;
+    padding: 16px 8px 16px 0;
+    text-align: right;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.88rem;
+    line-height: 1.7;
+    color: #45475a;
+    user-select: none;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  #line-numbers .active {
+    color: #cdd6f4;
+    font-weight: 700;
+  }
+
+  .editor-wrap.line-numbers #line-numbers { display: block; }
+
+  /* ── SETTINGS MODAL ── */
+  .settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 2px solid #f0ebe0;
+  }
+  .settings-row:last-child { border-bottom: none; padding-bottom: 0; }
+
+  .settings-label { font-weight: 700; font-size: .93rem; }
+  .settings-desc  { font-size: .78rem; color: #888; margin-top: 2px; }
+
+  /* Toggle switch */
+  .toggle {
+    position: relative;
+    width: 46px; height: 26px;
+    flex-shrink: 0;
+  }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-track {
+    position: absolute; inset: 0;
+    background: #ccc;
+    border: 2px solid var(--border);
+    border-radius: 26px;
+    cursor: pointer;
+    transition: background .2s;
+  }
+  .toggle-track::after {
+    content: '';
+    position: absolute;
+    left: 2px; top: 2px;
+    width: 18px; height: 18px;
+    background: white;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    transition: transform .2s;
+  }
+  .toggle input:checked + .toggle-track { background: var(--green); }
+  .toggle input:checked + .toggle-track::after { transform: translateX(20px); }
 
   /* NOTICES BAR */
   #notices {
@@ -447,6 +525,7 @@
     <div class="logo"><span class="logo-emoji">🎮</span> JavaScript Is Eval</div>
     <div class="header-right">
       <a class="header-badge" href="https://github.com/lewpar/javascript-is-eval" target="_blank" rel="noopener">⭐ GitHub</a>
+      <button class="header-badge header-btn" id="btn-settings" title="Settings">⚙️ Settings</button>
     </div>
   </header>
 
@@ -475,7 +554,8 @@
         <span id="shortcut-hint" style="font-size:.78rem;font-family:'Nunito',sans-serif;font-weight:700;opacity:.6"></span>
       </div>
 
-      <div class="editor-wrap">
+      <div class="editor-wrap" id="editor-wrap">
+        <div id="line-numbers" aria-hidden="true"></div>
         <pre id="highlight-layer" aria-hidden="true"></pre>
         <textarea id="code-editor"
           spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"
@@ -511,7 +591,42 @@
 
 </div><!-- /app -->
 
-<!-- SHARE MODAL -->
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settings-overlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Settings">
+    <div class="modal-header" style="background:var(--yellow);">
+      <span>⚙️ Settings</span>
+      <button class="btn-close-x" id="settings-close">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Line Numbers</div>
+          <div class="settings-desc">Show line numbers in the code editor</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="setting-line-numbers" />
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Auto-close Brackets</div>
+          <div class="settings-desc">Automatically insert closing ), ], }, ", '</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="setting-auto-close" />
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
 <div class="modal-overlay" id="share-popup-overlay">
   <div class="modal" role="dialog" aria-modal="true" aria-label="Share link">
     <div class="modal-header purple">
@@ -560,6 +675,33 @@
 let skipWarningThisSession = false;
 let layoutMode = 'vertical'; // 'vertical' | 'horizontal'
 
+// Settings state — defaults
+const settings = {
+  lineNumbers: true,
+  autoClose:   true,
+};
+
+const STORAGE_KEY = 'jie_settings';
+
+function saveSettings() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    ...settings,
+    layoutMode,
+  }));
+}
+
+function loadSettings() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (!stored) return;
+    if (typeof stored.lineNumbers === 'boolean') settings.lineNumbers = stored.lineNumbers;
+    if (typeof stored.autoClose   === 'boolean') settings.autoClose   = stored.autoClose;
+    if (stored.layoutMode === 'horizontal' || stored.layoutMode === 'vertical') {
+      layoutMode = stored.layoutMode;
+    }
+  } catch (_) {}
+}
+
 // ─── DOM REFS ─────────────────────────────────────────────────────────────────
 const editor        = document.getElementById('code-editor');
 const hlLayer       = document.getElementById('highlight-layer');
@@ -574,6 +716,11 @@ const editorPanel   = document.getElementById('editor-panel');
 const outputPanel   = document.getElementById('output-panel');
 const divider       = document.getElementById('divider');
 const btnLayout     = document.getElementById('btn-layout');
+const editorWrap    = document.getElementById('editor-wrap');
+const lineNumbersEl = document.getElementById('line-numbers');
+const settingsOverlay = document.getElementById('settings-overlay');
+const settingLineNumbers = document.getElementById('setting-line-numbers');
+const settingAutoClose   = document.getElementById('setting-auto-close');
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SYNTAX HIGHLIGHTER
@@ -647,17 +794,22 @@ editor.addEventListener('input',  syncHighlight);
 editor.addEventListener('scroll', syncScroll);
 
 // ─── URL HASH LOAD ────────────────────────────────────────────────────────────
-(function loadFromHash() {
+function loadFromHash() {
   const hash = window.location.hash;
   if (!hash || hash.length <= 1) return;
   try {
     const code = decodeURIComponent(escape(atob(decodeURIComponent(hash.slice(1)))));
     editor.value = code;
     syncHighlight();
+    updateLineNumbers();
     preloadNote.classList.add('show');
   } catch (_) {}
-})();
+}
+
+loadFromHash();
 syncHighlight();
+
+window.addEventListener('hashchange', loadFromHash);
 
 // ─── TAB + RUN SHORTCUT ───────────────────────────────────────────────────────
 editor.addEventListener('keydown', function(e) {
@@ -785,19 +937,16 @@ document.getElementById('btn-copy-url').addEventListener('click', () => {
 // ─── LAYOUT TOGGLE ───────────────────────────────────────────────────────────
 function setLayout(mode) {
   layoutMode = mode;
-  splitContainer.className = mode; // 'vertical' | 'horizontal'
+  splitContainer.className = mode;
   btnLayout.textContent = mode === 'vertical' ? '⇄ Horizontal' : '⇅ Vertical';
-  // Reset flex sizes to default when switching
   editorPanel.style.flex = '55';
   outputPanel.style.flex = '45';
+  saveSettings();
 }
 
 btnLayout.addEventListener('click', () => {
   setLayout(layoutMode === 'vertical' ? 'horizontal' : 'vertical');
 });
-
-// Initial label
-btnLayout.textContent = '⇄ Horizontal';
 
 // ─── DRAGGABLE DIVIDER ───────────────────────────────────────────────────────
 /*
@@ -863,6 +1012,131 @@ function startDrag(e) {
 const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
 document.getElementById('shortcut-hint').textContent = isMac ? '⌘↵ to run' : 'Ctrl+↵ to run';
 document.getElementById('btn-run').title = isMac ? 'Run (⌘+Enter)' : 'Run (Ctrl+Enter)';
+
+// ─── LINE NUMBERS ─────────────────────────────────────────────────────────────
+function updateLineNumbers() {
+  if (!settings.lineNumbers) return;
+  const lines = (editor.value || '').split('\n');
+  const activeLine = editor.value.substring(0, editor.selectionStart).split('\n').length;
+  lineNumbersEl.innerHTML = lines.map((_, i) =>
+    `<div class="${i + 1 === activeLine ? 'active' : ''}">${i + 1}</div>`
+  ).join('');
+  lineNumbersEl.scrollTop = editor.scrollTop;
+}
+
+document.addEventListener('selectionchange', () => {
+  if (document.activeElement === editor) updateLineNumbers();
+});
+
+// Sync line number scroll with editor scroll
+editor.addEventListener('scroll', () => {
+  if (settings.lineNumbers) lineNumbersEl.scrollTop = editor.scrollTop;
+});
+
+// ─── AUTO-CLOSE BRACKETS ─────────────────────────────────────────────────────
+const PAIRS = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'" };
+const CLOSERS = new Set(Object.values(PAIRS));
+
+editor.addEventListener('keydown', function(e) {
+  if (!settings.autoClose) return;
+
+  const open  = e.key;
+  const close = PAIRS[open];
+
+  // Typing an opener — insert pair
+  if (close) {
+    e.preventDefault();
+    const s = this.selectionStart, end = this.selectionEnd;
+    const selected = this.value.substring(s, end);
+    // Wrap selection or just insert pair
+    const insert = open + selected + close;
+    this.value = this.value.substring(0, s) + insert + this.value.substring(end);
+    // Place cursor inside the pair (or after selection)
+    this.selectionStart = this.selectionEnd = s + 1 + selected.length;
+    syncHighlight();
+    updateLineNumbers();
+    return;
+  }
+
+  // Typing a closer that already exists right after cursor — skip over it
+  if (CLOSERS.has(open)) {
+    const s = this.selectionStart;
+    if (this.selectionStart === this.selectionEnd && this.value[s] === open) {
+      e.preventDefault();
+      this.selectionStart = this.selectionEnd = s + 1;
+      return;
+    }
+  }
+
+  // Backspace on an empty pair — delete both characters
+  if (e.key === 'Backspace') {
+    const s = this.selectionStart;
+    if (this.selectionStart === this.selectionEnd && s > 0) {
+      const before = this.value[s - 1];
+      const after  = this.value[s];
+      if (PAIRS[before] === after) {
+        e.preventDefault();
+        this.value = this.value.substring(0, s - 1) + this.value.substring(s + 1);
+        this.selectionStart = this.selectionEnd = s - 1;
+        syncHighlight();
+        updateLineNumbers();
+      }
+    }
+  }
+});
+
+// ─── APPLY SETTINGS ──────────────────────────────────────────────────────────
+function applySettings() {
+  // Line numbers
+  settingLineNumbers.checked = settings.lineNumbers;
+  if (settings.lineNumbers) {
+    editorWrap.classList.add('line-numbers');
+    updateLineNumbers();
+  } else {
+    editorWrap.classList.remove('line-numbers');
+    lineNumbersEl.innerHTML = '';
+  }
+
+  // Auto-close (no DOM change needed — keydown handler reads settings.autoClose)
+  settingAutoClose.checked = settings.autoClose;
+}
+
+// ─── SETTINGS MODAL ──────────────────────────────────────────────────────────
+document.getElementById('btn-settings').addEventListener('click', () => {
+  settingsOverlay.classList.add('open');
+});
+document.getElementById('settings-close').addEventListener('click', () => {
+  settingsOverlay.classList.remove('open');
+});
+settingsOverlay.addEventListener('click', e => {
+  if (e.target === settingsOverlay) settingsOverlay.classList.remove('open');
+});
+
+settingLineNumbers.addEventListener('change', () => {
+  settings.lineNumbers = settingLineNumbers.checked;
+  applySettings();
+  saveSettings();
+});
+
+settingAutoClose.addEventListener('change', () => {
+  settings.autoClose = settingAutoClose.checked;
+  applySettings();
+  saveSettings();
+});
+
+// ─── STARTUP ─────────────────────────────────────────────────────────────────
+// Load persisted settings before applying
+loadSettings();
+
+// Apply layout from storage
+setLayout(layoutMode);
+
+// Apply all other settings
+applySettings();
+
+// Hook line numbers into existing input listener
+editor.addEventListener('input', updateLineNumbers);
+
 </script>
 </body>
 </html>
