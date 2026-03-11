@@ -820,15 +820,34 @@ editor.addEventListener('keydown', function(e) {
   if (e.key === 'Tab') {
     e.preventDefault();
     const s = this.selectionStart, end = this.selectionEnd;
-    this.value = this.value.substring(0, s) + '  ' + this.value.substring(end);
-    this.selectionStart = this.selectionEnd = s + 2;
-    syncHighlight();
+
+    if (e.shiftKey) {
+      // Shift-Tab: remove up to 2 leading spaces from the current line
+      const lineStart = this.value.lastIndexOf('\n', s - 1) + 1;
+      const before = this.value.substring(lineStart, s);
+      const spaces = before.match(/^ {1,2}/);
+      if (spaces) {
+        const remove = spaces[0].length;
+        this.value = this.value.substring(0, lineStart) + this.value.substring(lineStart + remove);
+        this.selectionStart = this.selectionEnd = Math.max(lineStart, s - remove);
+        syncHighlight();
+        updateLineNumbers();
+      }
+    } else {
+      // Tab: insert 2 spaces
+      this.value = this.value.substring(0, s) + '  ' + this.value.substring(end);
+      this.selectionStart = this.selectionEnd = s + 2;
+      syncHighlight();
+      updateLineNumbers();
+    }
   }
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     e.preventDefault();
     document.getElementById('btn-run').click();
   }
 });
+
+editor.addEventListener('blur', () => updateLineNumbers());
 
 // ─── OUTPUT HELPERS ───────────────────────────────────────────────────────────
 function appendOutput(text, type) {
@@ -1021,7 +1040,10 @@ document.getElementById('btn-run').title = isMac ? 'Run (⌘+Enter)' : 'Run (Ctr
 function updateLineNumbers() {
   if (!settings.lineNumbers) return;
   const lines = (editor.value || '').split('\n');
-  const activeLine = editor.value.substring(0, editor.selectionStart).split('\n').length;
+  const hasFocus = document.activeElement === editor;
+  const activeLine = hasFocus
+    ? editor.value.substring(0, editor.selectionStart).split('\n').length
+    : -1;
   lineNumbersEl.innerHTML = lines.map((_, i) =>
     `<div class="${i + 1 === activeLine ? 'active' : ''}">${i + 1}</div>`
   ).join('');
