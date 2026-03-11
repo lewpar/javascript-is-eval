@@ -702,11 +702,6 @@ async function runCode() {
   const code = editor.value.trim();
   if (!code) { appendOutput('Nothing to run — write some code first! 😊', 'warn'); return; }
 
-  const origLog = console.log, origWarn = console.warn, origError = console.error;
-  console.log   = (...a) => { appendOutput(a.map(safeStringify).join(' '), 'log');   origLog(...a); };
-  console.warn  = (...a) => { appendOutput(a.map(safeStringify).join(' '), 'warn');  origWarn(...a); };
-  console.error = (...a) => { appendOutput(a.map(safeStringify).join(' '), 'error'); origError(...a); };
-
   try {
     const tmpKey = '__PLAYGROUND_VOID_' + Date.now() + '__';
     window[tmpKey] = VOID_SENTINEL;
@@ -717,12 +712,20 @@ async function runCode() {
     if (result !== VOID_SENTINEL) appendOutput(safeStringify(result), 'return');
   } catch (err) {
     appendOutput(err.message, 'error');
-  } finally {
-    console.log = origLog; console.warn = origWarn; console.error = origError;
   }
 }
 
-// ─── RUN / MODAL ──────────────────────────────────────────────────────────────
+// ─── CONSOLE PATCH (permanent for the session) ───────────────────────────────
+// Patched once at page load and never restored, so async callbacks (.then,
+// setTimeout, etc.) that fire after runCode() returns still pipe to the panel.
+(function patchConsole() {
+  const origLog   = console.log;
+  const origWarn  = console.warn;
+  const origError = console.error;
+  console.log   = (...a) => { appendOutput(a.map(safeStringify).join(' '), 'log');   origLog(...a); };
+  console.warn  = (...a) => { appendOutput(a.map(safeStringify).join(' '), 'warn');  origWarn(...a); };
+  console.error = (...a) => { appendOutput(a.map(safeStringify).join(' '), 'error'); origError(...a); };
+})();
 document.getElementById('btn-run').addEventListener('click', () => {
   if (skipWarningThisSession) { runCode(); }
   else { skipChk.checked = false; overlay.classList.add('open'); }
