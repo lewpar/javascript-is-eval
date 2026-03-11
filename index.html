@@ -139,7 +139,7 @@
   #locked-flash.show { display: block; }
   #locked-flash.visible { opacity: 1; }
 
-  /* Locked lines dim overlay — one stripe per locked line */
+  /* Locked lines dim overlay */
   #locked-lines-overlay {
     position: absolute;
     inset: 0;
@@ -1523,10 +1523,13 @@ function parseEditableLines(str) {
 
 function updateLockedOverlay() {
   lockedLinesOverlay.innerHTML = '';
+  lockedLinesOverlay.classList.remove('active');
   if (!teacher.lineLock) return;
+
   const lineHeight = parseFloat(getComputedStyle(editor).lineHeight);
   const paddingTop = parseFloat(getComputedStyle(editor).paddingTop);
   const totalLines = editor.value.split('\n').length;
+
   for (let n = 1; n <= totalLines; n++) {
     if (!isLineEditable(n)) {
       const stripe = document.createElement('div');
@@ -1536,6 +1539,13 @@ function updateLockedOverlay() {
       lockedLinesOverlay.appendChild(stripe);
     }
   }
+
+  // Cover the empty space below all lines
+  const tail = document.createElement('div');
+  tail.className = 'locked-line-stripe';
+  tail.style.top    = (paddingTop + totalLines * lineHeight - editor.scrollTop) + 'px';
+  tail.style.bottom = '0';
+  lockedLinesOverlay.appendChild(tail);
 }
 
 function applyTeacherSettings() {
