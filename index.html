@@ -1460,7 +1460,7 @@ editor.addEventListener('keydown', function(e) {
   const before = this.value[s - 1];
   const after  = this.value[s];
   const BRACKET_PAIRS = { '{': '}', '[': ']', '(': ')' };
-  if (BRACKET_PAIRS[before] !== after) return;
+  if (!after || BRACKET_PAIRS[before] !== after) return;
 
   e.preventDefault();
   const lineStart = this.value.lastIndexOf('\n', s - 1) + 1;
