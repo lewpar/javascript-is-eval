@@ -1404,6 +1404,7 @@ const CLOSERS = new Set(Object.values(PAIRS));
 
 editor.addEventListener('keydown', function(e) {
   if (!settings.autoClose) return;
+  if (teacher.readOnly) return;
 
   const open  = e.key;
   const close = PAIRS[open];
@@ -1509,6 +1510,7 @@ editor.addEventListener('keydown', function(e) {
   // Block all editing in read-only mode
   if (teacher.readOnly) {
     if (e.ctrlKey || e.metaKey) return; // allow copy, select-all etc.
+    if (['Backspace','Delete'].includes(e.key)) { e.preventDefault(); return; }
     if (e.key.length > 1) return; // allow arrows, home, end etc.
     e.preventDefault();
     return;
