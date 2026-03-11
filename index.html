@@ -71,24 +71,22 @@
     50%       { transform: translateY(-4px); }
   }
 
-  .header-right { display: flex; align-items: center; gap: 10px; }
+  .header-right { display: flex; align-items: center; gap: 8px; }
 
   .header-badge {
     background: var(--border);
     color: var(--yellow);
     font-family: 'Fredoka One', cursive;
     font-size: 0.82rem;
-    padding: 4px 12px;
+    padding: 5px 13px;
     border-radius: 20px;
     text-decoration: none;
+    border: none;
+    cursor: pointer;
     transition: background 0.15s;
+    white-space: nowrap;
   }
   .header-badge:hover { background: #444; }
-  .header-btn {
-    cursor: pointer;
-    border: none;
-    font-family: 'Fredoka One', cursive;
-  }
 
   /* ── LINE NUMBERS ── */
   .editor-wrap.line-numbers pre,
@@ -358,6 +356,22 @@
   .btn-layout     { background: var(--blue);   color: white; }
   .btn-layout:hover { background: #3580e0; }
 
+  .btn-panel-clear {
+    background: none;
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+    opacity: 0.55;
+    padding: 2px 4px;
+    border-radius: 6px;
+    transition: opacity 0.15s, background 0.15s;
+    line-height: 1;
+  }
+  .btn-panel-clear:hover {
+    opacity: 1;
+    background: rgba(0,0,0,0.1);
+  }
+
   .toolbar-right { display: flex; gap: 8px; flex-wrap: wrap; }
 
   /* ── OUTPUT ── */
@@ -537,6 +551,7 @@
   <header>
     <div class="logo"><span class="logo-emoji">🎮</span> JavaScript Is Eval</div>
     <div class="header-right">
+      <button class="header-badge header-btn" id="btn-get-link">🔗 Share</button>
       <a class="header-badge" href="https://github.com/lewpar/javascript-is-eval" target="_blank" rel="noopener">⭐ GitHub</a>
       <button class="header-badge header-btn" id="btn-settings" title="Settings">⚙️ Settings</button>
     </div>
@@ -564,7 +579,10 @@
       <div class="panel-header yellow">
         <div class="panel-dots"><span></span><span></span><span></span></div>
         <span>✏️ Code Editor</span>
-        <span id="shortcut-hint" style="font-size:.78rem;font-family:'Nunito',sans-serif;font-weight:700;opacity:.6"></span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="btn-panel-clear" id="btn-reset" title="Clear editor">🗑</button>
+          <span id="shortcut-hint" style="font-size:.78rem;font-family:'Nunito',sans-serif;font-weight:700;opacity:.6"></span>
+        </div>
       </div>
 
       <div class="editor-wrap" id="editor-wrap">
@@ -577,12 +595,8 @@
       </div>
 
       <div class="toolbar">
-        <button class="btn btn-run"    id="btn-run">▶ Run</button>
-        <button class="btn btn-reset"  id="btn-reset">🗑 Clear</button>
         <div class="toolbar-right">
-          <button class="btn btn-layout"  id="btn-layout" title="Toggle layout">⇅ Vertical</button>
-          <button class="btn btn-copy"    id="btn-get-link">🔗 Get Link</button>
-          <button class="btn btn-clr"     id="btn-clear-output">✕ Clear Output</button>
+          <button class="btn btn-run" id="btn-run">▶ Run</button>
         </div>
       </div>
     </div>
@@ -595,7 +609,7 @@
       <div class="panel-header green">
         <div class="panel-dots"><span></span><span></span><span></span></div>
         <span>📟 Output Console</span>
-        <span></span>
+        <button class="btn-panel-clear" id="btn-clear-output" title="Clear output">🗑</button>
       </div>
       <div id="output-area"></div>
     </div>
@@ -644,6 +658,19 @@
         </div>
         <label class="toggle">
           <input type="checkbox" id="setting-smart-indent" />
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+
+      <div class="settings-section-header" style="margin-top:16px;">Layout</div>
+
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Horizontal Layout</div>
+          <div class="settings-desc">Place the editor and console side by side instead of stacked</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="setting-layout" />
           <span class="toggle-track"></span>
         </label>
       </div>
@@ -743,13 +770,13 @@ const splitContainer= document.getElementById('split-container');
 const editorPanel   = document.getElementById('editor-panel');
 const outputPanel   = document.getElementById('output-panel');
 const divider       = document.getElementById('divider');
-const btnLayout     = document.getElementById('btn-layout');
 const editorWrap    = document.getElementById('editor-wrap');
 const lineNumbersEl = document.getElementById('line-numbers');
 const settingsOverlay = document.getElementById('settings-overlay');
 const settingLineNumbers = document.getElementById('setting-line-numbers');
 const settingAutoClose   = document.getElementById('setting-auto-close');
 const settingSmartIndent = document.getElementById('setting-smart-indent');
+const settingLayout      = document.getElementById('setting-layout');
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SYNTAX HIGHLIGHTER
@@ -986,15 +1013,11 @@ document.getElementById('btn-copy-url').addEventListener('click', () => {
 function setLayout(mode) {
   layoutMode = mode;
   splitContainer.className = mode;
-  btnLayout.textContent = mode === 'vertical' ? '⇄ Horizontal' : '⇅ Vertical';
+  if (settingLayout) settingLayout.checked = mode === 'horizontal';
   editorPanel.style.flex = '55';
   outputPanel.style.flex = '45';
   saveSettings();
 }
-
-btnLayout.addEventListener('click', () => {
-  setLayout(layoutMode === 'vertical' ? 'horizontal' : 'vertical');
-});
 
 // ─── DRAGGABLE DIVIDER ───────────────────────────────────────────────────────
 /*
@@ -1099,10 +1122,8 @@ editor.addEventListener('keydown', function(e) {
     e.preventDefault();
     const s = this.selectionStart, end = this.selectionEnd;
     const selected = this.value.substring(s, end);
-    // Wrap selection or just insert pair
     const insert = open + selected + close;
     this.value = this.value.substring(0, s) + insert + this.value.substring(end);
-    // Place cursor inside the pair (or after selection)
     this.selectionStart = this.selectionEnd = s + 1 + selected.length;
     syncHighlight();
     updateLineNumbers();
@@ -1119,30 +1140,7 @@ editor.addEventListener('keydown', function(e) {
     }
   }
 
-  // Enter between a bracket pair — smart indent
-  if (e.key === 'Enter' && settings.smartIndent) {
-    const s = this.selectionStart;
-    if (this.selectionStart === this.selectionEnd) {
-      const before = this.value[s - 1];
-      const after  = this.value[s];
-      const BRACKET_PAIRS = { '{': '}', '[': ']', '(': ')' };
-      if (BRACKET_PAIRS[before] === after) {
-        e.preventDefault();
-        // Detect current line's indentation
-        const lineStart = this.value.lastIndexOf('\n', s - 1) + 1;
-        const lineText  = this.value.substring(lineStart, s);
-        const indent    = lineText.match(/^(\s*)/)[1];
-        const inner     = indent + '  '; // one extra level
-        const inserted  = '\n' + inner + '\n' + indent;
-        this.value = this.value.substring(0, s) + inserted + this.value.substring(s);
-        // Place cursor at end of the indented middle line
-        this.selectionStart = this.selectionEnd = s + 1 + inner.length;
-        syncHighlight();
-        updateLineNumbers();
-        return;
-      }
-    }
-  }
+  // Backspace on an empty pair — delete both characters
   if (e.key === 'Backspace') {
     const s = this.selectionStart;
     if (this.selectionStart === this.selectionEnd && s > 0) {
@@ -1157,6 +1155,30 @@ editor.addEventListener('keydown', function(e) {
       }
     }
   }
+});
+
+// Smart indent on Enter — independent of auto-close
+editor.addEventListener('keydown', function(e) {
+  if (!settings.smartIndent) return;
+  if (e.key !== 'Enter') return;
+  if (this.selectionStart !== this.selectionEnd) return;
+
+  const s = this.selectionStart;
+  const before = this.value[s - 1];
+  const after  = this.value[s];
+  const BRACKET_PAIRS = { '{': '}', '[': ']', '(': ')' };
+  if (BRACKET_PAIRS[before] !== after) return;
+
+  e.preventDefault();
+  const lineStart = this.value.lastIndexOf('\n', s - 1) + 1;
+  const lineText  = this.value.substring(lineStart, s);
+  const indent    = lineText.match(/^(\s*)/)[1];
+  const inner     = indent + '  ';
+  const inserted  = '\n' + inner + '\n' + indent;
+  this.value = this.value.substring(0, s) + inserted + this.value.substring(s);
+  this.selectionStart = this.selectionEnd = s + 1 + inner.length;
+  syncHighlight();
+  updateLineNumbers();
 });
 
 // ─── APPLY SETTINGS ──────────────────────────────────────────────────────────
@@ -1176,6 +1198,9 @@ function applySettings() {
 
   // Smart indent (no DOM change needed — keydown handler reads settings.smartIndent)
   settingSmartIndent.checked = settings.smartIndent;
+
+  // Layout
+  settingLayout.checked = layoutMode === 'horizontal';
 }
 
 // ─── SETTINGS MODAL ──────────────────────────────────────────────────────────
@@ -1205,6 +1230,10 @@ settingSmartIndent.addEventListener('change', () => {
   settings.smartIndent = settingSmartIndent.checked;
   applySettings();
   saveSettings();
+});
+
+settingLayout.addEventListener('change', () => {
+  setLayout(settingLayout.checked ? 'horizontal' : 'vertical');
 });
 
 // ─── STARTUP ─────────────────────────────────────────────────────────────────
