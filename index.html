@@ -23,6 +23,131 @@
     --divider-size: 8px;
   }
 
+  /* ── VSCODE THEME OVERRIDES ── */
+  body.theme-vscode {
+    --bg: #1e1e1e;
+    --panel: #252526;
+    --border: #3c3c3c;
+    --shadow: 0 2px 8px rgba(0,0,0,0.4);
+    --shadow-lg: 0 4px 16px rgba(0,0,0,0.5);
+    --yellow: #264f78;
+    --green: #0e7a0d;
+    --red: #c72e0f;
+    --blue: #0078d4;
+    --purple: #6b2fbb;
+    --orange: #d16c06;
+    --text: #cccccc;
+    --editor-bg: #1e1e1e;
+    --divider-size: 5px;
+    font-family: 'Consolas', 'JetBrains Mono', monospace;
+  }
+
+  body.theme-vscode header {
+    background: #323233;
+    border-bottom: 1px solid #3c3c3c;
+    box-shadow: none;
+  }
+  body.theme-vscode .logo { color: #cccccc; font-family: 'Segoe UI', sans-serif; }
+  body.theme-vscode .logo-emoji { animation: none; }
+  body.theme-vscode .header-badge {
+    background: #3c3c3c;
+    color: #cccccc;
+    border-radius: 4px;
+    font-family: 'Segoe UI', sans-serif;
+  }
+  body.theme-vscode .header-badge:hover { background: #505050; }
+
+  body.theme-vscode #split-container {
+    background: #1e1e1e;
+    background-image: none;
+    padding: 0;
+    gap: 1px;
+  }
+  body.theme-vscode .panel {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  body.theme-vscode .panel-header {
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border-bottom: 1px solid #3c3c3c;
+    padding: 8px 14px;
+    color: #cccccc;
+  }
+  body.theme-vscode .panel-header.yellow { background: #252526; }
+  body.theme-vscode .panel-header.green  { background: #252526; }
+  body.theme-vscode .panel-dots { display: none; }
+
+  body.theme-vscode .toolbar {
+    background: #252526;
+    border-top: 1px solid #3c3c3c;
+  }
+  body.theme-vscode .btn {
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 0.82rem;
+    border: 1px solid #3c3c3c;
+    border-radius: 3px;
+    box-shadow: none;
+  }
+  body.theme-vscode .btn:active { transform: none; box-shadow: none; }
+  body.theme-vscode .btn-run        { background: #0e7a0d; color: #fff; }
+  body.theme-vscode .btn-run:hover  { background: #0f9a0d; }
+  body.theme-vscode .btn-reset      { background: #3c3c3c; color: #ccc; }
+  body.theme-vscode .btn-reset:hover{ background: #505050; }
+
+  body.theme-vscode #line-numbers {
+    background: #1e1e1e;
+    border-right: 1px solid #3c3c3c;
+    color: #858585;
+  }
+  body.theme-vscode #line-numbers .active { color: #cccccc; }
+  body.theme-vscode #line-numbers .locked { color: #c72e0f; opacity: 0.7; }
+
+  body.theme-vscode .hl-keyword  { color: #569cd6; }
+  body.theme-vscode .hl-builtin  { color: #4ec9b0; }
+  body.theme-vscode .hl-string   { color: #ce9178; }
+  body.theme-vscode .hl-number   { color: #b5cea8; }
+  body.theme-vscode .hl-boolean  { color: #569cd6; }
+  body.theme-vscode .hl-comment  { color: #6a9955; font-style: italic; }
+  body.theme-vscode .hl-fn-call  { color: #dcdcaa; }
+  body.theme-vscode .hl-operator { color: #d4d4d4; }
+  body.theme-vscode .hl-plain    { color: #d4d4d4; }
+
+  body.theme-vscode #code-editor { caret-color: #aeafad; }
+  body.theme-vscode #code-editor::selection { background: rgba(38,79,120,0.6); }
+
+  body.theme-vscode #output-area { background: #1e1e1e; color: #d4d4d4; }
+  body.theme-vscode #output-area:empty::before { color: #555; }
+  body.theme-vscode .out-log    { color: #d4d4d4; }
+  body.theme-vscode .out-error  { color: #f44747; }
+  body.theme-vscode .out-warn   { color: #cca700; }
+  body.theme-vscode .out-return { color: #b5cea8; }
+  body.theme-vscode .out-label  { opacity: 0.7; }
+  body.theme-vscode .out-log    .out-label { color: #569cd6; }
+  body.theme-vscode .out-error  .out-label { color: #f44747; }
+  body.theme-vscode .out-warn   .out-label { color: #cca700; }
+  body.theme-vscode .out-return .out-label { color: #b5cea8; }
+  body.theme-vscode .out-timestamp { color: #555; }
+
+  body.theme-vscode #divider { background: #3c3c3c; }
+  body.theme-vscode #divider:hover, body.theme-vscode #divider.dragging { background: #0078d4; }
+
+  body.theme-vscode .notice { border-radius: 0; border-left: none; border-right: none; border-top: none; }
+
+  body.theme-vscode #task-panel-inner { border: none; border-radius: 0; box-shadow: none; border-bottom: 1px solid #3c3c3c; }
+  body.theme-vscode #task-panel-header { background: #252526; border-bottom: 1px solid #3c3c3c; font-family: 'Segoe UI', sans-serif; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; }
+  body.theme-vscode #task-panel { padding: 0; }
+  body.theme-vscode #task-panel-body { background: #252526; }
+  body.theme-vscode #task-panel-text { color: #cccccc; font-family: 'Segoe UI', sans-serif; font-weight: 400; }
+
+  body.theme-vscode .settings-overlay .modal { border-radius: 4px; border: 1px solid #3c3c3c; box-shadow: 0 8px 32px rgba(0,0,0,0.6); }
+  body.theme-vscode .modal-header { border-bottom: 1px solid #3c3c3c; font-family: 'Segoe UI', sans-serif; }
+  body.theme-vscode .modal-footer { background: #252526; border-top: 1px solid #3c3c3c; }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   /* Full viewport layout */
@@ -533,6 +658,7 @@
   .out-error  .out-label { color: #f38ba8; }
   .out-warn   .out-label { color: #f9e2af; }
   .out-return .out-label { color: #a6e3a1; }
+  .out-timestamp { font-size: 0.7rem; color: #45475a; margin-right: 8px; user-select: none; font-weight: 400; }
 
   /* ── DIVIDER ── */
   #divider {
@@ -828,6 +954,19 @@
         </label>
       </div>
 
+      <div class="settings-section-header" style="margin-top:16px;">Appearance</div>
+
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">VSCode Theme</div>
+          <div class="settings-desc">Switch from the cartoon theme to a VSCode-style dark UI</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="setting-theme" />
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+
       <div class="settings-section-header collapsible" style="margin-top:16px;" id="teacher-section-header">
         <span>🎓 Teacher <span style="font-family:'Nunito',sans-serif;font-size:0.65rem;font-weight:800;background:var(--orange);color:white;padding:2px 7px;border-radius:20px;vertical-align:middle;letter-spacing:0.03em;">EXPERIMENTAL</span></span>
         <span class="settings-collapse-icon" id="teacher-collapse-icon">▼</span>
@@ -950,6 +1089,7 @@ const settings = {
   lineNumbers: true,
   autoClose:   true,
   smartIndent: true,
+  theme:       'cartoon',
 };
 
 // Teacher state
@@ -976,6 +1116,7 @@ function loadSettings() {
     if (typeof stored.lineNumbers === 'boolean') settings.lineNumbers = stored.lineNumbers;
     if (typeof stored.autoClose   === 'boolean') settings.autoClose   = stored.autoClose;
     if (typeof stored.smartIndent === 'boolean') settings.smartIndent = stored.smartIndent;
+    if (stored.theme === 'vscode' || stored.theme === 'cartoon') settings.theme = stored.theme;
     if (stored.layoutMode === 'horizontal' || stored.layoutMode === 'vertical') {
       layoutMode = stored.layoutMode;
     }
@@ -1002,6 +1143,7 @@ const settingLineNumbers = document.getElementById('setting-line-numbers');
 const settingAutoClose   = document.getElementById('setting-auto-close');
 const settingSmartIndent = document.getElementById('setting-smart-indent');
 const settingLayout      = document.getElementById('setting-layout');
+const settingTheme       = document.getElementById('setting-theme');
 const settingLineLock    = document.getElementById('setting-line-lock');
 const settingEditableLines = document.getElementById('setting-editable-lines');
 const editableLinesRow   = document.getElementById('editable-lines-row');
@@ -1174,9 +1316,19 @@ function appendOutput(text, type) {
   const labels = { log:'[log]', error:'[error]', warn:'[warn]', return:'[return]' };
   const line = document.createElement('div');
   line.className = 'out-' + type;
+
+  const now = new Date();
+  const ts = now.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+           + '.' + String(now.getMilliseconds()).padStart(3, '0');
+  const tsEl = document.createElement('span');
+  tsEl.className = 'out-timestamp';
+  tsEl.textContent = ts;
+
   const lbl = document.createElement('span');
   lbl.className = 'out-label';
   lbl.textContent = labels[type] || '';
+
+  line.appendChild(tsEl);
   line.appendChild(lbl);
   line.appendChild(document.createTextNode(text));
   outputArea.appendChild(line);
@@ -1200,7 +1352,7 @@ async function runCode() {
   try {
     const tmpKey = '__PLAYGROUND_VOID_' + Date.now() + '__';
     window[tmpKey] = VOID_SENTINEL;
-    const factory = new Function(`return (async function __playground__() { ${code}\nreturn window["${tmpKey}"]; })();`);
+    const factory = new Function(`return (async function __playground__() {\n${code}\n;\nreturn window["${tmpKey}"];\n})();`);
     let result;
     try   { result = await factory(); }
     finally { delete window[tmpKey]; }
@@ -1365,7 +1517,6 @@ function startDrag(e) {
   document.addEventListener('touchend',  onUp);
 }
 
-// ─── SHORTCUT HINT ────────────────────────────────────────────────────────────
 const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
 document.getElementById('shortcut-hint').textContent = isMac ? '⌘↵ to run' : 'Ctrl+↵ to run';
 document.getElementById('btn-run').title = isMac ? 'Run (⌘+Enter)' : 'Run (Ctrl+Enter)';
@@ -1617,8 +1768,9 @@ function applySettings() {
   // Smart indent (no DOM change needed — keydown handler reads settings.smartIndent)
   settingSmartIndent.checked = settings.smartIndent;
 
-  // Layout
-  settingLayout.checked = layoutMode === 'horizontal';
+  // Theme
+  settingTheme.checked = settings.theme === 'vscode';
+  document.body.classList.toggle('theme-vscode', settings.theme === 'vscode');
 }
 
 // ─── SETTINGS MODAL ──────────────────────────────────────────────────────────
@@ -1652,6 +1804,12 @@ settingSmartIndent.addEventListener('change', () => {
 
 settingLayout.addEventListener('change', () => {
   setLayout(settingLayout.checked ? 'horizontal' : 'vertical');
+});
+
+settingTheme.addEventListener('change', () => {
+  settings.theme = settingTheme.checked ? 'vscode' : 'cartoon';
+  document.body.classList.toggle('theme-vscode', settings.theme === 'vscode');
+  saveSettings();
 });
 
 // ─── TEACHER SETTINGS ────────────────────────────────────────────────────────
