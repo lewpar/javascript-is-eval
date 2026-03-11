@@ -237,7 +237,63 @@
   .toggle input:checked + .toggle-track { background: var(--green); }
   .toggle input:checked + .toggle-track::after { transform: translateX(20px); }
 
-  /* NOTICES BAR */
+  /* Read-only editor overlay */
+  .editor-wrap.read-only textarea {
+    caret-color: transparent;
+    cursor: default;
+  }
+  .editor-wrap.read-only::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.13);
+    pointer-events: none;
+    z-index: 5;
+    border-radius: 0;
+  }
+
+  /* ── TASK PANEL ── */
+  #task-panel {
+    display: none;
+    flex-shrink: 0;
+    padding: 10px 14px 0;
+    background: var(--bg);
+  }
+  #task-panel.show { display: block; }
+
+  #task-panel-inner {
+    border: 3px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    background: var(--panel);
+  }
+
+  #task-panel-header {
+    background: var(--blue);
+    color: white;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1rem;
+    padding: 10px 16px;
+    border-bottom: 3px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #task-panel-body {
+    padding: 14px 18px;
+    max-height: 120px;
+    overflow-y: auto;
+  }
+
+  #task-panel-text {
+    font-size: 0.95rem;
+    line-height: 1.7;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0;
+  }
   #notices {
     flex-shrink: 0;
     display: flex;
@@ -648,6 +704,22 @@
       <span>🔒</span>
       <span>Some lines are locked — you can only edit the <strong>highlighted</strong> lines.</span>
     </div>
+    <div class="notice" id="readonly-notice" style="background:#6c7086;color:white;">
+      <span>👁️</span>
+      <span>This code is <strong>read-only</strong> — you can run it but not edit it.</span>
+    </div>
+  </div>
+
+  <!-- task description panel — shown above split when task is set -->
+  <div id="task-panel">
+    <div id="task-panel-inner">
+      <div id="task-panel-header">
+        <span>📋 Task</span>
+      </div>
+      <div id="task-panel-body">
+        <p id="task-panel-text"></p>
+      </div>
+    </div>
   </div>
 
   <!-- split layout -->
@@ -762,16 +834,29 @@
       </div>
       <div class="settings-collapsible-body" id="teacher-section-body">
 
-        <div class="settings-row">
+        <div class="settings-row" id="read-only-row">
+          <div>
+            <div class="settings-label">Read-only Mode</div>
+            <div class="settings-desc" id="read-only-desc">Students can run the code but cannot edit it at all</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="setting-read-only" />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="settings-row" id="line-lock-row">
           <div>
             <div class="settings-label">Line Locking</div>
-            <div class="settings-desc">Restrict students to editing only specified lines</div>
+            <div class="settings-desc" id="line-lock-desc">Restrict students to editing only specified lines</div>
           </div>
           <label class="toggle">
             <input type="checkbox" id="setting-line-lock" />
             <span class="toggle-track"></span>
           </label>
         </div>
+
+        <div id="mode-conflict-note" style="display:none;"></div>
 
         <div class="settings-row" id="editable-lines-row" style="display:none; flex-direction:column; align-items:flex-start;">
           <div>
@@ -781,6 +866,14 @@
           <input type="text" class="settings-text-input" id="setting-editable-lines" placeholder="e.g. 3,4,5" />
         </div>
 
+        <div class="settings-row" style="flex-direction:column; align-items:flex-start;">
+          <div>
+            <div class="settings-label">Task Description</div>
+            <div class="settings-desc">Shown to students as a notice when they open the link</div>
+          </div>
+          <textarea class="settings-text-input" id="setting-task-desc" rows="3" placeholder="e.g. Complete the function so it returns the sum of two numbers." style="resize:vertical;margin-top:8px;"></textarea>
+        </div>
+
       </div>
 
     </div>
@@ -788,6 +881,22 @@
 </div>
 
 
+<!-- TASK DESCRIPTION MODAL -->
+<div class="modal-overlay" id="task-modal-overlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Task">
+    <div class="modal-header" style="background:var(--blue);color:white;">
+      <span>📋 Your Task</span>
+    </div>
+    <div class="modal-body">
+      <p id="task-modal-text" style="font-size:1rem;line-height:1.7;font-weight:600;color:var(--text);margin-bottom:0;"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-run" id="task-modal-confirm">Got it, let's go! 🚀</button>
+    </div>
+  </div>
+</div>
+
+<!-- SHARE MODAL -->
 <div class="modal-overlay" id="share-popup-overlay">
   <div class="modal" role="dialog" aria-modal="true" aria-label="Share link">
     <div class="modal-header purple">
@@ -846,7 +955,9 @@ const settings = {
 // Teacher state
 const teacher = {
   lineLock:      false,
-  editableLines: [], // array of 1-based line numbers
+  editableLines: [],
+  taskDesc:      '',
+  readOnly:      false,
 };
 
 const STORAGE_KEY = 'jie_settings';
@@ -897,6 +1008,18 @@ const editableLinesRow   = document.getElementById('editable-lines-row');
 const lockedFlash        = document.getElementById('locked-flash');
 const lockedLinesOverlay = document.getElementById('locked-lines-overlay');
 const lockedNotice       = document.getElementById('locked-notice');
+const readonlyNotice     = document.getElementById('readonly-notice');
+const settingReadOnly    = document.getElementById('setting-read-only');
+const modeConflictNote   = document.getElementById('mode-conflict-note');
+const readOnlyDesc       = document.getElementById('read-only-desc');
+const lineLockDesc       = document.getElementById('line-lock-desc');
+const readOnlyRow        = document.getElementById('read-only-row');
+const lineLockRow        = document.getElementById('line-lock-row');
+const taskPanel          = document.getElementById('task-panel');
+const taskPanelText      = document.getElementById('task-panel-text');
+const settingTaskDesc    = document.getElementById('setting-task-desc');
+const taskModalOverlay   = document.getElementById('task-modal-overlay');
+const taskModalText      = document.getElementById('task-modal-text');
 const teacherSectionHeader = document.getElementById('teacher-section-header');
 const teacherCollapseIcon  = document.getElementById('teacher-collapse-icon');
 const teacherSectionBody   = document.getElementById('teacher-section-body');
@@ -990,10 +1113,13 @@ function loadFromHash() {
         // Load teacher settings if present
         if (envelope.teacher) {
           teacher.lineLock      = !!envelope.teacher.lineLock;
+          teacher.readOnly      = !!envelope.teacher.readOnly;
           teacher.editableLines = Array.isArray(envelope.teacher.editableLines)
             ? envelope.teacher.editableLines.map(Number).filter(n => n > 0)
             : [];
-          applyTeacherSettings();
+          teacher.taskDesc = typeof envelope.teacher.taskDesc === 'string'
+            ? envelope.teacher.taskDesc : '';
+          applyTeacherSettings(true);
         }
       }
     } catch (_) { /* plain code string — use as-is */ }
@@ -1128,11 +1254,17 @@ function buildShareUrl() {
   const code = editor.value;
   if (!code.trim()) return null;
   const envelope = { code };
-  if (teacher.lineLock) {
-    envelope.teacher = {
-      lineLock: true,
-      editableLines: teacher.editableLines,
-    };
+  if (teacher.lineLock || teacher.readOnly || teacher.taskDesc.trim()) {
+    envelope.teacher = {};
+    if (teacher.readOnly) {
+      envelope.teacher.readOnly = true;
+    } else if (teacher.lineLock) {
+      envelope.teacher.lineLock = true;
+      envelope.teacher.editableLines = teacher.editableLines;
+    }
+    if (teacher.taskDesc.trim()) {
+      envelope.teacher.taskDesc = teacher.taskDesc.trim();
+    }
   }
   const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(envelope))));
   return `${location.origin}${location.pathname}#${encoded}`;
@@ -1320,7 +1452,7 @@ editor.addEventListener('keydown', function(e) {
 editor.addEventListener('keydown', function(e) {
   if (!settings.smartIndent) return;
   if (e.key !== 'Enter') return;
-  if (teacher.lineLock) return;
+  if (teacher.lineLock || teacher.readOnly) return;
   if (this.selectionStart !== this.selectionEnd) return;
 
   const s = this.selectionStart;
@@ -1374,6 +1506,14 @@ editor.addEventListener('input', () => {
 });
 
 editor.addEventListener('keydown', function(e) {
+  // Block all editing in read-only mode
+  if (teacher.readOnly) {
+    if (e.ctrlKey || e.metaKey) return; // allow copy, select-all etc.
+    if (e.key.length > 1) return; // allow arrows, home, end etc.
+    e.preventDefault();
+    return;
+  }
+
   if (!teacher.lineLock) return;
 
   // Intercept Ctrl/Cmd+Z for safe undo
@@ -1436,8 +1576,9 @@ editor.addEventListener('keydown', function(e) {
   }
 });
 
-// Block paste on locked lines, strip newlines on editable lines
+// Block paste in read-only mode; block/sanitise paste when line locking
 editor.addEventListener('paste', function(e) {
+  if (teacher.readOnly) { e.preventDefault(); return; }
   if (!teacher.lineLock) return;
   const lineNum = getCurrentLineNumber();
   if (!isLineEditable(lineNum)) {
@@ -1548,15 +1689,48 @@ function updateLockedOverlay() {
   lockedLinesOverlay.appendChild(tail);
 }
 
-function applyTeacherSettings() {
+function applyTeacherSettings(fromHash = false) {
   // Rebuild the fast-lookup Set
   editableLinesSet = new Set(teacher.editableLines);
+  settingReadOnly.checked = teacher.readOnly;
   settingLineLock.checked = teacher.lineLock;
   settingEditableLines.value = teacher.editableLines.join(', ');
-  editableLinesRow.style.display = teacher.lineLock ? 'flex' : 'none';
-  editorWrap.classList.toggle('no-wrap', teacher.lineLock);
-  // Show/hide the student notice
-  lockedNotice.classList.toggle('show', teacher.lineLock && teacher.editableLines.length > 0);
+  settingTaskDesc.value = teacher.taskDesc;
+
+  // Mutual exclusion UI — dim the unavailable option and explain why
+  settingLineLock.disabled = teacher.readOnly;
+  settingReadOnly.disabled = teacher.lineLock;
+  lineLockRow.style.opacity  = teacher.readOnly ? '0.45' : '1';
+  readOnlyRow.style.opacity  = teacher.lineLock ? '0.45' : '1';
+  lineLockDesc.textContent   = teacher.readOnly
+    ? 'Unavailable — disable Read-only mode first'
+    : 'Restrict students to editing only specified lines';
+  readOnlyDesc.textContent   = teacher.lineLock
+    ? 'Unavailable — disable Line Locking first'
+    : 'Students can run the code but cannot edit it at all';
+
+  // Editable lines row — only when line lock on and not conflicting
+  editableLinesRow.style.display = (teacher.lineLock && !teacher.readOnly) ? 'flex' : 'none';
+
+  // Read-only: cover editor, disable input
+  editorWrap.classList.toggle('read-only', teacher.readOnly);
+  readonlyNotice.classList.toggle('show', teacher.readOnly);
+
+  // Line locking
+  editorWrap.classList.toggle('no-wrap', teacher.lineLock && !teacher.readOnly);
+  lockedNotice.classList.toggle('show', teacher.lineLock && !teacher.readOnly && teacher.editableLines.length > 0);
+
+  // Task description
+  if (teacher.taskDesc.trim()) {
+    taskPanelText.textContent = teacher.taskDesc.trim();
+    taskPanel.classList.add('show');
+    if (fromHash) {
+      taskModalText.textContent = teacher.taskDesc.trim();
+      taskModalOverlay.classList.add('open');
+    }
+  } else {
+    taskPanel.classList.remove('show');
+  }
   updateLineNumbers();
   updateLockedOverlay();
 }
@@ -1595,10 +1769,33 @@ function flashLockedLine(lineNum) {
   });
 }
 
+settingTaskDesc.addEventListener('input', () => {
+  teacher.taskDesc = settingTaskDesc.value;
+  if (teacher.taskDesc.trim()) {
+    taskPanelText.textContent = teacher.taskDesc.trim();
+    taskPanel.classList.add('show');
+  } else {
+    taskPanel.classList.remove('show');
+  }
+});
+
+document.getElementById('task-modal-confirm').addEventListener('click', () => {
+  taskModalOverlay.classList.remove('open');
+  editor.focus();
+});
+taskModalOverlay.addEventListener('click', e => {
+  if (e.target === taskModalOverlay) taskModalOverlay.classList.remove('open');
+});
+
 // Teacher section collapse toggle
 teacherSectionHeader.addEventListener('click', () => {
   const isOpen = teacherSectionBody.classList.toggle('open');
   teacherCollapseIcon.classList.toggle('open', isOpen);
+});
+
+settingReadOnly.addEventListener('change', () => {
+  teacher.readOnly = settingReadOnly.checked;
+  applyTeacherSettings();
 });
 
 settingLineLock.addEventListener('change', () => {
