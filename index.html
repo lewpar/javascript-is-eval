@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JS Playground 🎮</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fef9f0;
+    --panel: #ffffff;
+    --border: #2d2d2d;
+    --shadow: 4px 4px 0px #2d2d2d;
+    --shadow-lg: 6px 6px 0px #2d2d2d;
+    --yellow: #ffd93d;
+    --green: #6bcb77;
+    --red: #ff6b6b;
+    --blue: #4d96ff;
+    --purple: #c77dff;
+    --orange: #ff9f43;
+    --text: #2d2d2d;
+    --editor-bg: #1e1e2e;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    background-image: radial-gradient(circle at 20px 20px, #e8ddd0 1px, transparent 0);
+    background-size: 40px 40px;
+    min-height: 100vh;
+    color: var(--text);
+  }
+
+  header {
+    background: var(--yellow);
+    border-bottom: 3px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 3px 0 var(--border);
+  }
+
+  .logo {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.8rem;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .logo-emoji { font-size: 1.6rem; animation: bounce 2s ease-in-out infinite; }
+
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-4px); }
+  }
+
+  .header-badge {
+    background: var(--border);
+    color: var(--yellow);
+    font-family: 'Fredoka One', cursive;
+    font-size: 0.85rem;
+    padding: 4px 12px;
+    border-radius: 20px;
+  }
+
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 28px 20px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .intro-strip {
+    background: var(--blue);
+    border: 3px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: white;
+    font-weight: 700;
+    font-size: 0.95rem;
+  }
+  .intro-strip .icon { font-size: 1.4rem; }
+
+  .preload-notice {
+    display: none;
+    background: var(--purple);
+    color: white;
+    border: 3px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 10px 16px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    align-items: center;
+    gap: 8px;
+  }
+  .preload-notice.show { display: flex; }
+
+  .panel {
+    background: var(--panel);
+    border: 3px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 18px;
+    border-bottom: 3px solid var(--border);
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.05rem;
+  }
+  .panel-header.yellow { background: var(--yellow); }
+  .panel-header.green  { background: var(--green); }
+
+  .panel-dots { display: flex; gap: 6px; }
+  .panel-dots span {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    display: inline-block;
+  }
+  .panel-dots span:nth-child(1) { background: var(--red); }
+  .panel-dots span:nth-child(2) { background: var(--yellow); }
+  .panel-dots span:nth-child(3) { background: var(--green); }
+
+  /* ─── EDITOR: textarea + highlight pre overlay ─── */
+  /*
+     The highlight layer (<pre>) sits absolutely behind the textarea.
+     The textarea sits on top with transparent text and a yellow caret.
+     Both share identical font/size/padding so characters align perfectly.
+  */
+  .editor-wrap {
+    position: relative;
+    background: var(--editor-bg);
+    overflow: hidden;
+  }
+
+  /* Shared typographic contract — MUST match on both elements */
+  .editor-wrap pre,
+  .editor-wrap textarea {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    tab-size: 2;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    padding: 18px;
+    margin: 0;
+    width: 100%;
+    min-height: 240px;
+    border: none;
+    outline: none;
+    overflow: auto;
+  }
+
+  #highlight-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    background: transparent;
+    overflow: hidden; /* textarea controls scroll */
+  }
+
+  #code-editor {
+    position: relative;
+    z-index: 2;
+    display: block;
+    background: transparent;
+    color: transparent;        /* text invisible — pre shows colours */
+    caret-color: var(--yellow);
+    resize: vertical;
+    min-height: 240px;
+  }
+
+  #code-editor::selection { background: rgba(255,217,61,0.28); }
+
+  /* ── Token colours (Catppuccin Mocha) ── */
+  .hl-keyword  { color: #cba6f7; }                         /* purple  */
+  .hl-builtin  { color: #89dceb; }                         /* sky     */
+  .hl-string   { color: #a6e3a1; }                         /* green   */
+  .hl-number   { color: #fab387; }                         /* peach   */
+  .hl-boolean  { color: #f9e2af; }                         /* yellow  */
+  .hl-comment  { color: #6c7086; font-style: italic; }     /* overlay */
+  .hl-fn-call  { color: #89b4fa; }                         /* blue    */
+  .hl-operator { color: #f38ba8; }                         /* red     */
+  .hl-plain    { color: #cdd6f4; }                         /* text    */
+
+  /* TOOLBAR */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 18px;
+    background: #f7f3ec;
+    border-top: 3px solid var(--border);
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1rem;
+    padding: 8px 20px;
+    border: 3px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform 0.08s, box-shadow 0.08s;
+    box-shadow: 3px 3px 0 var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--border); }
+  .btn-run        { background: var(--green);  color: var(--text); }
+  .btn-run:hover  { background: #52bb5e; }
+  .btn-reset      { background: #ddd;          color: var(--text); }
+  .btn-reset:hover{ background: #ccc; }
+  .btn-copy       { background: var(--purple); color: white; }
+  .btn-copy:hover { background: #ab60eb; }
+  .btn-clr        { background: var(--red);    color: white; }
+  .btn-clr:hover  { background: #e05555; }
+
+  .toolbar-right { margin-left: auto; display: flex; gap: 10px; }
+
+  /* SHARE ROW */
+  .share-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 18px;
+    border-top: 3px solid var(--border);
+    background: #f7f3ec;
+    flex-wrap: wrap;
+  }
+  .share-label { font-weight: 800; font-size: 0.9rem; white-space: nowrap; }
+  #share-url {
+    flex: 1; min-width: 160px;
+    padding: 8px 12px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    background: white; color: var(--text);
+    outline: none;
+  }
+
+  /* OUTPUT */
+  #output-area {
+    min-height: 120px;
+    max-height: 320px;
+    overflow-y: auto;
+    padding: 16px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.88rem;
+    line-height: 1.75;
+    background: var(--editor-bg);
+    color: #cdd6f4;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  #output-area:empty::before {
+    content: "// Output will appear here...";
+    color: #585b70;
+    font-style: italic;
+  }
+
+  .out-log    { color: #cdd6f4; }
+  .out-error  { color: #f38ba8; }
+  .out-warn   { color: #f9e2af; }
+  .out-return { color: #a6e3a1; }
+  .out-label  { font-size: 0.75rem; opacity: 0.5; user-select: none; margin-right: 2px; }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(45,45,45,.55);
+    z-index: 100;
+    align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--panel);
+    border: 4px solid var(--border);
+    border-radius: 20px;
+    box-shadow: 8px 8px 0 var(--border);
+    max-width: 480px; width: 100%;
+    overflow: hidden;
+    animation: popIn .18s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes popIn {
+    from { transform: scale(.85); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+  .modal-header {
+    background: var(--orange);
+    border-bottom: 3px solid var(--border);
+    padding: 16px 20px;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.3rem;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .modal-body { padding: 20px; }
+  .modal-body p  { font-size: .95rem; line-height: 1.6; margin-bottom: 16px; }
+  .modal-body ul { margin: 0 0 18px 18px; font-size: .88rem; line-height: 1.8; color: #555; }
+  .modal-checkbox {
+    display: flex; align-items: center; gap: 10px;
+    background: #fff8e7;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    font-weight: 700; font-size: .9rem;
+    user-select: none;
+  }
+  .modal-checkbox input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--green); cursor: pointer; }
+  .modal-footer {
+    display: flex; gap: 10px; justify-content: flex-end;
+    padding: 14px 20px;
+    border-top: 3px solid var(--border);
+    background: #f7f3ec;
+  }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: #1e1e2e; }
+  ::-webkit-scrollbar-thumb { background: #45475a; border-radius: 4px; }
+
+  @media (max-width: 600px) {
+    .logo { font-size: 1.4rem; }
+    .toolbar-right { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span class="logo-emoji">🎮</span> JS Playground</div>
+  <div class="header-badge">Safe · Simple · Fun</div>
+</header>
+
+<main>
+
+  <div class="intro-strip">
+    <span class="icon">💡</span>
+    <span>Write JavaScript below and hit <strong>Run</strong>. Use <code style="background:rgba(255,255,255,.2);padding:1px 6px;border-radius:4px">console.log()</code> or <strong>return</strong> a value to see output!</span>
+  </div>
+
+  <div class="preload-notice" id="preload-notice">
+    <span>📎</span>
+    <span>Code was loaded from a shared link — review it before running!</span>
+  </div>
+
+  <!-- EDITOR PANEL -->
+  <div class="panel">
+    <div class="panel-header yellow">
+      <div class="panel-dots"><span></span><span></span><span></span></div>
+      <span>✏️ Code Editor</span>
+      <span id="shortcut-hint" style="font-size:.8rem;font-family:'Nunito',sans-serif;font-weight:700;opacity:.65"></span>
+    </div>
+
+    <div class="editor-wrap">
+      <pre id="highlight-layer" aria-hidden="true"></pre>
+      <textarea id="code-editor"
+        spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"
+        placeholder="// Write your JavaScript here!&#10;// Tip: use console.log() or return a value&#10;&#10;return 'Hello, world! 👋';"
+      ></textarea>
+    </div>
+
+    <div class="toolbar">
+      <button class="btn btn-run"   id="btn-run">▶ Run</button>
+      <button class="btn btn-reset" id="btn-reset">🗑 Clear</button>
+      <div class="toolbar-right">
+        <button class="btn btn-copy" id="btn-copy">🔗 Copy Link</button>
+        <button class="btn btn-clr"  id="btn-clear-output">✕ Clear Output</button>
+      </div>
+    </div>
+
+    <div class="share-row">
+      <span class="share-label">🔗 Share:</span>
+      <input type="text" id="share-url" readonly placeholder="Click 'Copy Link' to generate a shareable URL…" />
+    </div>
+  </div>
+
+  <!-- OUTPUT PANEL -->
+  <div class="panel">
+    <div class="panel-header green">
+      <div class="panel-dots"><span></span><span></span><span></span></div>
+      <span>📟 Output Console</span>
+      <span></span>
+    </div>
+    <div id="output-area"></div>
+  </div>
+
+</main>
+
+<!-- WARNING MODAL -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-header">
+      <span>⚠️</span><span id="modal-title">Run this code?</span>
+    </div>
+    <div class="modal-body">
+      <p>You're about to execute JavaScript directly in your browser. A few things to know:</p>
+      <ul>
+        <li>Only run code you wrote or fully trust</li>
+        <li>Code runs in your browser — it can access this page</li>
+        <li>Never paste code from strangers without reading it first</li>
+      </ul>
+      <label class="modal-checkbox" for="skip-checkbox">
+        <input type="checkbox" id="skip-checkbox" />
+        Don't show this warning again this session
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-reset" id="modal-cancel">Cancel</button>
+      <button class="btn btn-run"   id="modal-confirm">✓ Yes, Run It!</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ─── SESSION STATE ────────────────────────────────────────────────────────────
+let skipWarningThisSession = false;
+
+// ─── DOM REFS ─────────────────────────────────────────────────────────────────
+const editor      = document.getElementById('code-editor');
+const hlLayer     = document.getElementById('highlight-layer');
+const outputArea  = document.getElementById('output-area');
+const overlay     = document.getElementById('modal-overlay');
+const skipChk     = document.getElementById('skip-checkbox');
+const shareInput  = document.getElementById('share-url');
+const preloadNote = document.getElementById('preload-notice');
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SYNTAX HIGHLIGHTER
+// Regex-based single-pass tokeniser. Token rules are ordered by priority:
+// strings/comments first so their internals aren't re-parsed.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const KEYWORDS = new Set([
+  'break','case','catch','class','const','continue','debugger','default',
+  'delete','do','else','export','extends','finally','for','function','if',
+  'import','in','instanceof','let','new','of','return','static','super',
+  'switch','this','throw','try','typeof','var','void','while','with','yield',
+  'async','await'
+]);
+
+const BUILTINS = new Set([
+  'console','Math','Array','Object','String','Number','Boolean','Date',
+  'JSON','Promise','Set','Map','WeakMap','WeakSet','Symbol','Error',
+  'parseInt','parseFloat','isNaN','isFinite','decodeURIComponent',
+  'encodeURIComponent','setTimeout','clearTimeout','setInterval',
+  'clearInterval','fetch','alert','confirm','prompt','document','window',
+  'globalThis','Infinity','NaN'
+]);
+
+const TOKEN_RULES = [
+  { cls: 'hl-comment', re: /\/\/[^\n]*/y },
+  { cls: 'hl-comment', re: /\/\*[\s\S]*?\*\//y },
+  { cls: 'hl-string',  re: /`(?:[^`\\]|\\.)*`/y },
+  { cls: 'hl-string',  re: /"(?:[^"\\]|\\.)*"/y },
+  { cls: 'hl-string',  re: /'(?:[^'\\]|\\.)*'/y },
+  { cls: 'hl-boolean', re: /\b(?:true|false|null|undefined)\b/y },
+  { cls: 'hl-number',  re: /\b(?:0[xX][0-9a-fA-F]+|0[bB][01]+|0[oO][0-7]+|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\b/y },
+  { cls: 'hl-ident',   re: /[A-Za-z_$][A-Za-z0-9_$]*/y },
+  { cls: 'hl-operator',re: /===|!==|=>|[+\-*/%&|^~<>!]=?|[=?:,;.[\](){}]/y },
+  { cls: null,          re: /\s+/y },
+];
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function highlight(code) {
+  let out = '', pos = 0;
+  const len = code.length;
+
+  while (pos < len) {
+    let matched = false;
+    for (const rule of TOKEN_RULES) {
+      rule.re.lastIndex = pos;
+      const m = rule.re.exec(code);
+      if (!m) continue;
+
+      const text = m[0];
+      if (rule.cls === null) {
+        out += escHtml(text); // whitespace — no span
+      } else if (rule.cls === 'hl-ident') {
+        let cls;
+        const after = code[pos + text.length];
+        if (KEYWORDS.has(text))      cls = 'hl-keyword';
+        else if (BUILTINS.has(text)) cls = 'hl-builtin';
+        else if (after === '(')      cls = 'hl-fn-call';
+        else                         cls = 'hl-plain';
+        out += `<span class="${cls}">${escHtml(text)}</span>`;
+      } else {
+        out += `<span class="${rule.cls}">${escHtml(text)}</span>`;
+      }
+
+      pos += text.length;
+      matched = true;
+      break;
+    }
+    if (!matched) { out += escHtml(code[pos]); pos++; }
+  }
+  return out + '\n'; // trailing newline keeps pre height == textarea height
+}
+
+function syncHighlight() {
+  hlLayer.innerHTML = highlight(editor.value);
+}
+
+function syncScroll() {
+  hlLayer.scrollTop  = editor.scrollTop;
+  hlLayer.scrollLeft = editor.scrollLeft;
+}
+
+editor.addEventListener('input',  syncHighlight);
+editor.addEventListener('scroll', syncScroll);
+
+// ─── LOAD FROM URL HASH ──────────────────────────────────────────────────────
+function loadFromHash() {
+  const hash = window.location.hash;
+  if (!hash || hash.length <= 1) return;
+  try {
+    const b64  = decodeURIComponent(hash.slice(1));
+    const code = decodeURIComponent(escape(atob(b64)));
+    editor.value = code;
+    syncHighlight();
+    preloadNote.classList.add('show');
+  } catch (_) { /* malformed hash — ignore */ }
+}
+loadFromHash();
+syncHighlight(); // initial pass even if no hash
+
+// ─── TAB + Ctrl/Cmd+Enter ────────────────────────────────────────────────────
+editor.addEventListener('keydown', function(e) {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const s = this.selectionStart, end = this.selectionEnd;
+    this.value = this.value.substring(0, s) + '  ' + this.value.substring(end);
+    this.selectionStart = this.selectionEnd = s + 2;
+    syncHighlight();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('btn-run').click();
+  }
+});
+
+// ─── OUTPUT HELPERS ──────────────────────────────────────────────────────────
+function appendOutput(text, type) {
+  const labels = {
+    log:    '[log]    ',
+    error:  '[error]  ',
+    warn:   '[warn]   ',
+    return: '[return] ',
+  };
+  const line = document.createElement('div');
+  line.className = 'out-' + type;
+  const lbl = document.createElement('span');
+  lbl.className = 'out-label';
+  lbl.textContent = labels[type] || '';
+  line.appendChild(lbl);
+  line.appendChild(document.createTextNode(text));
+  outputArea.appendChild(line);
+  outputArea.scrollTop = outputArea.scrollHeight;
+}
+
+function safeStringify(val) {
+  if (val === null)      return 'null';
+  if (val === undefined) return 'undefined';
+  if (typeof val === 'function') return val.toString();
+  if (typeof val === 'object') {
+    try { return JSON.stringify(val, null, 2); } catch { return String(val); }
+  }
+  return String(val);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EXECUTION
+//
+// User code is wrapped in an async function so:
+//   - `return` works at the top level and its value is captured & printed.
+//   - Top-level `await` is supported.
+//   - The wrapper is invisible to the user.
+//
+// A VOID_SENTINEL symbol is injected as the default final return value so we
+// can tell the difference between:
+//   (a) user had no return statement  → sentinel returned → print nothing
+//   (b) user wrote `return;`          → undefined returned → print "undefined"
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const VOID_SENTINEL = Symbol('void');
+
+async function runCode() {
+  const code = editor.value.trim();
+  if (!code) {
+    appendOutput('Nothing to run — write some code first! 😊', 'warn');
+    return;
+  }
+
+  // Capture console calls
+  const origLog   = console.log;
+  const origWarn  = console.warn;
+  const origError = console.error;
+  console.log   = (...a) => { appendOutput(a.map(safeStringify).join(' '), 'log');   origLog(...a); };
+  console.warn  = (...a) => { appendOutput(a.map(safeStringify).join(' '), 'warn');  origWarn(...a); };
+  console.error = (...a) => { appendOutput(a.map(safeStringify).join(' '), 'error'); origError(...a); };
+
+  try {
+    // Temporarily expose the sentinel on window so the wrapper can reference it
+    // without polluting the user's visible scope with a named variable.
+    const tmpKey = '__PLAYGROUND_VOID_' + Date.now() + '__';
+    window[tmpKey] = VOID_SENTINEL;
+
+    // Build an async wrapper function. The user's code comes first; the
+    // sentinel return is the final fallback if the user never hits a return.
+    const factory = new Function(`
+      return (async function __playground__() {
+        ${code}
+        return window["${tmpKey}"];
+      })();
+    `);
+
+    let result;
+    try {
+      result = await factory();
+    } finally {
+      delete window[tmpKey];
+    }
+
+    // Only print [return] when the user explicitly returned something
+    if (result !== VOID_SENTINEL) {
+      appendOutput(safeStringify(result), 'return');
+    }
+
+  } catch (err) {
+    appendOutput(err.message, 'error');
+  } finally {
+    console.log   = origLog;
+    console.warn  = origWarn;
+    console.error = origError;
+  }
+}
+
+// ─── RUN BUTTON ──────────────────────────────────────────────────────────────
+document.getElementById('btn-run').addEventListener('click', () => {
+  if (skipWarningThisSession) {
+    runCode();
+  } else {
+    skipChk.checked = false;
+    overlay.classList.add('open');
+  }
+});
+
+// ─── MODAL ───────────────────────────────────────────────────────────────────
+document.getElementById('modal-confirm').addEventListener('click', () => {
+  if (skipChk.checked) skipWarningThisSession = true;
+  overlay.classList.remove('open');
+  runCode();
+});
+document.getElementById('modal-cancel').addEventListener('click', () => {
+  overlay.classList.remove('open');
+});
+overlay.addEventListener('click', e => {
+  if (e.target === overlay) overlay.classList.remove('open');
+});
+
+// ─── CLEAR CODE ──────────────────────────────────────────────────────────────
+document.getElementById('btn-reset').addEventListener('click', () => {
+  editor.value = '';
+  syncHighlight();
+  preloadNote.classList.remove('show');
+  shareInput.value = '';
+  history.replaceState(null, '', location.pathname);
+  editor.focus();
+});
+
+// ─── CLEAR OUTPUT ────────────────────────────────────────────────────────────
+document.getElementById('btn-clear-output').addEventListener('click', () => {
+  outputArea.innerHTML = '';
+});
+
+// ─── SHARE LINK ──────────────────────────────────────────────────────────────
+function buildShareUrl() {
+  const code = editor.value;
+  if (!code.trim()) return null;
+  const b64 = btoa(unescape(encodeURIComponent(code)));
+  return `${location.origin}${location.pathname}#${b64}`;
+}
+
+document.getElementById('btn-copy').addEventListener('click', () => {
+  const url = buildShareUrl();
+  if (!url) { shareInput.placeholder = 'Write some code first!'; return; }
+
+  const b64 = btoa(unescape(encodeURIComponent(editor.value)));
+  shareInput.value = url;
+  history.replaceState(null, '', '#' + b64);
+
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('btn-copy');
+    const orig = btn.innerHTML;
+    btn.innerHTML = '✓ Copied!';
+    btn.style.background = '#6bcb77';
+    setTimeout(() => { btn.innerHTML = orig; btn.style.background = ''; }, 1800);
+  }).catch(() => shareInput.select());
+});
+
+// Keep URL live once it's been generated
+editor.addEventListener('input', () => {
+  if (!shareInput.value) return;
+  const url = buildShareUrl();
+  if (url) {
+    shareInput.value = url;
+    history.replaceState(null, '', '#' + btoa(unescape(encodeURIComponent(editor.value))));
+  } else {
+    shareInput.value = '';
+    history.replaceState(null, '', location.pathname);
+  }
+});
+
+// ─── KEYBOARD SHORTCUT HINT ──────────────────────────────────────────────────
+const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
+document.getElementById('shortcut-hint').textContent = isMac ? '⌘↵ to run' : 'Ctrl+↵ to run';
+document.getElementById('btn-run').title = isMac ? 'Run (⌘+Enter)' : 'Run (Ctrl+Enter)';
+</script>
+</body>
+</html>
