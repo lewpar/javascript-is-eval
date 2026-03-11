@@ -132,6 +132,15 @@
   }
   .settings-row:last-child { border-bottom: none; padding-bottom: 0; }
 
+  .settings-section-header {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1rem;
+    color: var(--text);
+    padding: 4px 0 8px 0;
+    border-bottom: 2px solid #e8e0d0;
+    margin-bottom: 4px;
+  }
+
   .settings-label { font-weight: 700; font-size: .93rem; }
   .settings-desc  { font-size: .78rem; color: #888; margin-top: 2px; }
 
@@ -604,6 +613,8 @@
     </div>
     <div class="modal-body">
 
+      <div class="settings-section-header">Code Editor</div>
+
       <div class="settings-row">
         <div>
           <div class="settings-label">Line Numbers</div>
@@ -622,6 +633,17 @@
         </div>
         <label class="toggle">
           <input type="checkbox" id="setting-auto-close" />
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Smart Indent on Enter</div>
+          <div class="settings-desc">After {, [, ( place cursor indented on a new line with closing bracket below</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="setting-smart-indent" />
           <span class="toggle-track"></span>
         </label>
       </div>
@@ -683,6 +705,7 @@ let layoutMode = 'vertical'; // 'vertical' | 'horizontal'
 const settings = {
   lineNumbers: true,
   autoClose:   true,
+  smartIndent: true,
 };
 
 const STORAGE_KEY = 'jie_settings';
@@ -700,6 +723,7 @@ function loadSettings() {
     if (!stored) return;
     if (typeof stored.lineNumbers === 'boolean') settings.lineNumbers = stored.lineNumbers;
     if (typeof stored.autoClose   === 'boolean') settings.autoClose   = stored.autoClose;
+    if (typeof stored.smartIndent === 'boolean') settings.smartIndent = stored.smartIndent;
     if (stored.layoutMode === 'horizontal' || stored.layoutMode === 'vertical') {
       layoutMode = stored.layoutMode;
     }
@@ -725,6 +749,7 @@ const lineNumbersEl = document.getElementById('line-numbers');
 const settingsOverlay = document.getElementById('settings-overlay');
 const settingLineNumbers = document.getElementById('setting-line-numbers');
 const settingAutoClose   = document.getElementById('setting-auto-close');
+const settingSmartIndent = document.getElementById('setting-smart-indent');
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SYNTAX HIGHLIGHTER
@@ -1094,7 +1119,30 @@ editor.addEventListener('keydown', function(e) {
     }
   }
 
-  // Backspace on an empty pair — delete both characters
+  // Enter between a bracket pair — smart indent
+  if (e.key === 'Enter' && settings.smartIndent) {
+    const s = this.selectionStart;
+    if (this.selectionStart === this.selectionEnd) {
+      const before = this.value[s - 1];
+      const after  = this.value[s];
+      const BRACKET_PAIRS = { '{': '}', '[': ']', '(': ')' };
+      if (BRACKET_PAIRS[before] === after) {
+        e.preventDefault();
+        // Detect current line's indentation
+        const lineStart = this.value.lastIndexOf('\n', s - 1) + 1;
+        const lineText  = this.value.substring(lineStart, s);
+        const indent    = lineText.match(/^(\s*)/)[1];
+        const inner     = indent + '  '; // one extra level
+        const inserted  = '\n' + inner + '\n' + indent;
+        this.value = this.value.substring(0, s) + inserted + this.value.substring(s);
+        // Place cursor at end of the indented middle line
+        this.selectionStart = this.selectionEnd = s + 1 + inner.length;
+        syncHighlight();
+        updateLineNumbers();
+        return;
+      }
+    }
+  }
   if (e.key === 'Backspace') {
     const s = this.selectionStart;
     if (this.selectionStart === this.selectionEnd && s > 0) {
@@ -1125,6 +1173,9 @@ function applySettings() {
 
   // Auto-close (no DOM change needed — keydown handler reads settings.autoClose)
   settingAutoClose.checked = settings.autoClose;
+
+  // Smart indent (no DOM change needed — keydown handler reads settings.smartIndent)
+  settingSmartIndent.checked = settings.smartIndent;
 }
 
 // ─── SETTINGS MODAL ──────────────────────────────────────────────────────────
@@ -1146,6 +1197,12 @@ settingLineNumbers.addEventListener('change', () => {
 
 settingAutoClose.addEventListener('change', () => {
   settings.autoClose = settingAutoClose.checked;
+  applySettings();
+  saveSettings();
+});
+
+settingSmartIndent.addEventListener('change', () => {
+  settings.smartIndent = settingSmartIndent.checked;
   applySettings();
   saveSettings();
 });
